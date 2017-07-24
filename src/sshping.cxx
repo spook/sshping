@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <vector>
 
@@ -62,6 +63,7 @@ enum  { opNONE,
         opID,
         opPWD,
         opTIME,
+        opTEST,
         opVERB };
 const option::Descriptor usage[] = {
     {opNONE, 0, "",  "",          Arg::None, "Usage: sshping [options] [user@]addr[:port]" },
@@ -75,7 +77,8 @@ const option::Descriptor usage[] = {
     {opHELP, 0, "h", "help",      Arg::None, "  -h  --help           Print usage and exit"},
     {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opPWD,  0, "p", "password",  Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
-    {opTIME, 0, "t", "runtime",   Arg::Reqd, "  -r  --runtime SECS   Run for SECS seconds, instead of count limit"},
+    {opTIME, 0, "r", "runtime",   Arg::Reqd, "  -r  --runtime SECS   Run for SECS seconds, instead of count limit"},
+    {opTEST, 0, "t", "tests",     Arg::Reqd, "  -t  --tests e|s      Run tests e=echo s=speed; default es=both"},
     {opVERB, 0, "v", "verbose",   Arg::None, "  -v  --verbose        Show more output, use twice for more: -vv"},
     {0,0,0,0,0,0}
 };
@@ -164,7 +167,7 @@ ssh_session begin_session() {
        }
      */
     if (verbosity) {
-        printf("+++ Connected\n");
+        printf("+++ Connected to %s:%s\n", addr, port);
     }
     return ses;
 }
@@ -252,12 +255,12 @@ int run_echo_test(ssh_channel & chn) {
         int i = n % (sizeof(wbuf) - 1);
         nbytes = ssh_channel_write(chn, &wbuf[i], 1);
         if (nbytes != 1) {
-            fprintf(stderr, "\nwrite sent %d\n", nbytes);
+            fprintf(stderr, "\n*** write put %d bytes, expected 1\n", nbytes);
             return SSH_ERROR;
         }
         nbytes = ssh_channel_read_timeout(chn, &rbuf, 1, /*is-stderr*/ 0, 2500);
         if (nbytes != 1) {
-            fprintf(stderr, "\nread got %d\n", nbytes);
+            fprintf(stderr, "\n*** read got %d bytes, expected 1\n", nbytes);
             return SSH_ERROR;
         }
         // Timing: end
@@ -268,9 +271,8 @@ int run_echo_test(ssh_channel & chn) {
         tot_latency += latency;
         if (!min_latency || (latency < min_latency)) min_latency = latency;
         if (latency > max_latency) max_latency = latency;
-        //fprintf(stderr, "%c %" PRIu64 " nsec\n", rbuf[0], nsec_diff(tw, tr));
     }
-    //fprintf(stderr, "\n");
+
     uint64_t avg_latency = tot_latency / num_chars;
     uint64_t med_latency;
     std::sort(latencies.begin(), latencies.end());
@@ -283,8 +285,8 @@ int run_echo_test(ssh_channel & chn) {
     }
     uint64_t stddev = 0;
     printf("--- Minimum Latency: %" PRIu64 " nsec\n", min_latency);
-    printf("--- Average Latency: %" PRIu64 " nsec\n", avg_latency);
     printf("---  Median Latency: %" PRIu64 " nsec  +/- %" PRIu64" std dev\n", med_latency, stddev);
+    printf("--- Average Latency: %" PRIu64 " nsec\n", avg_latency);
     printf("--- Maximum Latency: %" PRIu64 " nsec\n", max_latency);
 
     // Terminate the echo responder
@@ -292,6 +294,59 @@ int run_echo_test(ssh_channel & chn) {
     if (verbosity) {
         printf("+++ Echo responder finished\n");
     }
+    return SSH_OK;
+}
+
+// Run a speed test
+int run_speed_test(ssh_session ses) {
+
+    if (verbosity) {
+        printf("+++ Speed test started\n");
+    }
+
+    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, "/dev/null");
+    if (scp == NULL) {
+        fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
+        return SSH_ERROR;
+    }
+    int rc = ssh_scp_init(scp);
+    if (rc != SSH_OK) {
+        fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
+        ssh_scp_free(scp);
+        return rc;
+    }
+
+    #define BUFLEN 8000000
+    char buf[BUFLEN];
+    memset(buf, 's', BUFLEN);
+    rc = ssh_scp_push_file(scp, "speedtest.tmp", BUFLEN, S_IRUSR);
+    if (rc != SSH_OK) {
+        fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
+        return rc;
+    }
+
+    struct timespec t2;
+    clock_gettime(CLOCK_MONOTONIC, &t2);
+    rc = ssh_scp_write(scp, buf, BUFLEN);
+    if (rc != SSH_OK) {
+        fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
+        return rc;
+    }
+    struct timespec t3;
+    clock_gettime(CLOCK_MONOTONIC, &t3);
+
+    ssh_scp_close(scp);
+    ssh_scp_free(scp);
+
+    double duration = double(nsec_diff(t3, t2))/1000000000.0;
+    if (duration == 0.0) duration = 0.1;
+    uint64_t Bps = double(BUFLEN)/duration;
+
+    printf("---  Transfer Speed: %" PRIu64 " Bytes/second\n", Bps);
+    if (verbosity) {
+        printf("+++ Speed test completed\n");
+    }
+    return SSH_OK;
 }
 
 void logout_channel(ssh_channel & chn) {
@@ -386,7 +441,10 @@ int main(int   argc,
     }
 
     // Run the tests
-    run_echo_test(chn);
+    bool do_echo  = !opts[opTEST] || strchr(opts[opTEST].arg, 'e');
+    bool do_speed = !opts[opTEST] || strchr(opts[opTEST].arg, 's');
+    if (do_echo)  run_echo_test(chn);
+    if (do_speed) run_speed_test(ses);
 
     // Cleanup
     logout_channel(chn);

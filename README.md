@@ -18,6 +18,16 @@ Options:
   -v  --verbose        Show more output, use twice for more: -vv
 ```
 
+### Example
+
+```
+# bin/sshping cheyenne.example.com
+--- Login: 1721 msec
+--- Minimum Latency: 4351 nsec
+---  Median Latency: 16641 nsec  +/- 1032 std dev
+--- Average Latency: 174477 nsec
+--- Maximum Latency: 1514953 nsec
+
 ### Building
 
 Have the libssh-dev package installed.  From the main directory (where 
