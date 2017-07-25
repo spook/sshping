@@ -27,6 +27,7 @@ Options:
 ---  Median Latency: 16641 nsec  +/- 1032 std dev
 --- Average Latency: 174477 nsec
 --- Maximum Latency: 1514953 nsec
+```
 
 ### Building
 
