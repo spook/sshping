@@ -35,14 +35,21 @@
 
 #include "optionparser.h"
 
+#define DEFAULT_COUNT 1000
+#define MEGA         1000000
+#define GIGA      1000000000
+#define GIGAF     1000000000.0
+#define SPEED_BUFLEN 8000000
+
 struct timespec t0;
 struct timespec t1;
-int             verbosity = 0;
-int             num_chars = 1000;
-char*           port      = NULL;
-char*           addr      = NULL;
-char*           user      = NULL;
-std::string     echo_cmd  = "cat > /dev/null";
+int             verbosity  = 0;
+int             char_limit = 0;
+int             time_limit = 0;
+char*           port       = NULL;
+char*           addr       = NULL;
+char*           user       = NULL;
+std::string     echo_cmd   = "cat > /dev/null";
 
 /* *INDENT-OFF* */
 // Define a required argument for optionparse
@@ -93,14 +100,14 @@ void die(const char* msg) {
 // Nanosecond difference between two timestamps
 uint64_t nsec_diff(const struct timespec & t0,
                    const struct timespec & t1) {
-    uint64_t u0 = t0.tv_sec * 1000000000 + t0.tv_nsec;
-    uint64_t u1 = t1.tv_sec * 1000000000 + t1.tv_nsec;
+    uint64_t u0 = t0.tv_sec * GIGA + t0.tv_nsec;
+    uint64_t u1 = t1.tv_sec * GIGA + t1.tv_nsec;
     return u1 > u0 ? u1 - u0 : u0 - u1;
 }
 
 // nanoseconds to milliseconds
 int to_msec(uint64_t nsecs) {
-    return nsecs / 1000000;
+    return nsecs / MEGA;
 }
 
 // Consume all pending output and discard it
@@ -240,13 +247,12 @@ int run_echo_test(ssh_channel & chn) {
 
     //  Send one character at a time, read back the response, getting timing data as we go
     uint64_t tot_latency = 0;
-    uint64_t min_latency = 0;
-    uint64_t max_latency = 0;
-
     char wbuf[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n";
     char rbuf[2];
     std::vector<uint64_t> latencies;
-    for (int n = 0; n < num_chars; n++) {
+    time_t endt = time(NULL) + time_limit;
+    for (int n = 0; (!char_limit || (n < char_limit))
+                 && (!time_limit || (time(NULL) <= endt)); n++) {
 
         // Timing: begin
         struct timespec tw;
@@ -269,25 +275,33 @@ int run_echo_test(ssh_channel & chn) {
         uint64_t latency = nsec_diff(tw, tr);
         latencies.push_back(latency);
         tot_latency += latency;
-        if (!min_latency || (latency < min_latency)) min_latency = latency;
-        if (latency > max_latency) max_latency = latency;
     }
 
-    uint64_t avg_latency = tot_latency / num_chars;
+    int num_sent = latencies.size();
+    if (!num_sent) {
+        fprintf(stderr, "*** Unable to get any echos in give time\n");
+        return SSH_ERROR;
+    }
+    if (!num_sent) {
+        printf("-*- Warning: too few echos to be statistically valid\n");
+    }
+    uint64_t avg_latency = tot_latency / num_sent;
     uint64_t med_latency;
     std::sort(latencies.begin(), latencies.end());
-    size_t nlat = latencies.size();
-    if (nlat & 1) {
-        med_latency = latencies[(nlat+1)/2 - 1];
+    uint64_t min_latency = latencies[0];
+    uint64_t max_latency = latencies[num_sent-1];
+    if (num_sent & 1) {
+        med_latency = latencies[(num_sent+1)/2 - 1];
     }
     else {
-        med_latency = (latencies[nlat/2 - 1] + latencies[(nlat+1)/2 - 1]) / 2;
+        med_latency = (latencies[num_sent/2 - 1] + latencies[(num_sent+1)/2 - 1]) / 2;
     }
     uint64_t stddev = 0;
     printf("--- Minimum Latency: %" PRIu64 " nsec\n", min_latency);
     printf("---  Median Latency: %" PRIu64 " nsec  +/- %" PRIu64" std dev\n", med_latency, stddev);
     printf("--- Average Latency: %" PRIu64 " nsec\n", avg_latency);
     printf("--- Maximum Latency: %" PRIu64 " nsec\n", max_latency);
+    printf("---      Echo count: %d Bytes\n", num_sent);
 
     // Terminate the echo responder
         // TODO
@@ -316,10 +330,9 @@ int run_speed_test(ssh_session ses) {
         return rc;
     }
 
-    #define BUFLEN 8000000
-    char buf[BUFLEN];
-    memset(buf, 's', BUFLEN);
-    rc = ssh_scp_push_file(scp, "speedtest.tmp", BUFLEN, S_IRUSR);
+    char buf[SPEED_BUFLEN];
+    memset(buf, 's', SPEED_BUFLEN);
+    rc = ssh_scp_push_file(scp, "speedtest.tmp", SPEED_BUFLEN, S_IRUSR);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
         return rc;
@@ -327,7 +340,7 @@ int run_speed_test(ssh_session ses) {
 
     struct timespec t2;
     clock_gettime(CLOCK_MONOTONIC, &t2);
-    rc = ssh_scp_write(scp, buf, BUFLEN);
+    rc = ssh_scp_write(scp, buf, SPEED_BUFLEN);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
         return rc;
@@ -338,9 +351,9 @@ int run_speed_test(ssh_session ses) {
     ssh_scp_close(scp);
     ssh_scp_free(scp);
 
-    double duration = double(nsec_diff(t3, t2))/1000000000.0;
+    double duration = double(nsec_diff(t3, t2))/GIGAF;
     if (duration == 0.0) duration = 0.1;
-    uint64_t Bps = double(BUFLEN)/duration;
+    uint64_t Bps = double(SPEED_BUFLEN)/duration;
 
     printf("---  Transfer Speed: %" PRIu64 " Bytes/second\n", Bps);
     if (verbosity) {
@@ -418,7 +431,19 @@ int main(int   argc,
         echo_cmd = opts[opECMD].arg;
     }
     if (opts[opNUM]) {
-        num_chars = atoi(opts[opNUM].arg);
+        char_limit = atoi(opts[opNUM].arg);
+    }
+    if (opts[opTIME]) {
+        time_limit = atoi(opts[opTIME].arg);
+    }
+    if (!opts[opNUM] && !opts[opTIME]) {
+        char_limit = DEFAULT_COUNT;
+    }
+    bool do_echo  = !opts[opTEST] || strchr(opts[opTEST].arg, 'e');
+    bool do_speed = !opts[opTEST] || strchr(opts[opTEST].arg, 's');
+    if (do_echo && (char_limit <= 0) && (time_limit <= 0)) {
+        fprintf(stderr, "*** For the echo test, a time limit or character count is required\n");
+        exit(255);
     }
     verbosity = opts[opVERB].count();
 
@@ -441,8 +466,6 @@ int main(int   argc,
     }
 
     // Run the tests
-    bool do_echo  = !opts[opTEST] || strchr(opts[opTEST].arg, 'e');
-    bool do_speed = !opts[opTEST] || strchr(opts[opTEST].arg, 's');
     if (do_echo)  run_echo_test(chn);
     if (do_speed) run_speed_test(ses);
 
