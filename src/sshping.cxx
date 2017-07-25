@@ -282,7 +282,7 @@ int run_echo_test(ssh_channel & chn) {
         fprintf(stderr, "*** Unable to get any echos in give time\n");
         return SSH_ERROR;
     }
-    if (!num_sent) {
+    if (num_sent < 13) {
         printf("-*- Warning: too few echos to be statistically valid\n");
     }
     uint64_t avg_latency = tot_latency / num_sent;
