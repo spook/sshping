@@ -5,8 +5,8 @@ ssh-based ping: measure character-echo latency for an interactive ssh session
 ```
 Usage: sshping [options] [user@]addr[:port]
  
-  SSH-based ping that measures interactive character echo latency.
-  Pronounced "shipping".
+  SSH-based ping that measures interactive character echo latency
+  and file transfer throughput.  Pronounced "shipping".
  
 Options:
   -c  --count NCHARS   Number of characters to echo, default 1000
@@ -15,6 +15,7 @@ Options:
   -i  --identity FILE  Identity file, ie ssh private keyfile
   -p  --password PWD   Use password PWD (can be seen, use with care)
   -r  --runtime SECS   Run for SECS seconds, instead of count limit
+  -t  --tests e|s      Run tests e=echo s=speed; default es=both
   -v  --verbose        Show more output, use twice for more: -vv
 ```
 
