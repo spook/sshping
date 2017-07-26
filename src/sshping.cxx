@@ -83,11 +83,11 @@ const option::Descriptor usage[] = {
     {opNUM,  0, "c", "count",     Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
     {opECMD, 0, "e", "echocmd",   Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
     {opHELP, 0, "h", "help",      Arg::None, "  -h  --help           Print usage and exit"},
-    {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
+//    {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opPWD,  0, "p", "password",  Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
     {opTIME, 0, "r", "runtime",   Arg::Reqd, "  -r  --runtime SECS   Run for SECS seconds, instead of count limit"},
     {opTEST, 0, "t", "tests",     Arg::Reqd, "  -t  --tests e|s      Run tests e=echo s=speed; default es=both"},
-    {opVERB, 0, "v", "verbose",   Arg::None, "  -v  --verbose        Show more output, use twice for more: -vv"},
+    {opVERB, 0, "v", "verbose",   Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
     {0,0,0,0,0,0}
 };
 /* *INDENT-ON* */
