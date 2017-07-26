@@ -49,6 +49,7 @@ int             time_limit = 0;
 char*           port       = NULL;
 char*           addr       = NULL;
 char*           user       = NULL;
+char*           pass       = NULL;
 std::string     echo_cmd   = "cat > /dev/null";
 
 /* *INDENT-OFF* */
@@ -130,6 +131,136 @@ int discard_output(ssh_channel & chn,
     return SSH_ERROR;
 }
 
+// Try public-key authentication
+int authenticate_pubkey(ssh_session & ses) {
+    int rc = ssh_userauth_publickey_auto(ses, NULL, NULL);  // TODO:  allow passphrase
+    if (verbosity && (rc == SSH_AUTH_ERROR)) {
+        fprintf(stderr, "  * Public-key authentication failed: %s\n", ssh_get_error(ses));
+    }
+    return rc;
+}
+// Try password authentication
+int authenticate_password(ssh_session & ses) {
+    if (!pass) {
+        char  qbuf[256];
+        if (user) {
+            snprintf(qbuf, sizeof(qbuf),"Enter password for user %s: ", user);
+        }
+        else {
+            strncpy(qbuf, "Enter your password: ", sizeof(qbuf));
+        }
+        pass = getpass(qbuf);
+    }
+    int rc = ssh_userauth_password(ses, NULL, pass);
+    if (verbosity && (rc == SSH_AUTH_ERROR)) {
+        fprintf(stderr, "  * Password authentication failed: %s\n", ssh_get_error(ses));
+    }
+    return rc;
+}
+
+// Try keyboard-interactive authentication
+int authenticate_kbdint(ssh_session & ses) {
+    int rc = ssh_userauth_kbdint(ses, NULL, NULL);
+    while (rc == SSH_AUTH_INFO) {
+        const char* name        = ssh_userauth_kbdint_getname(ses);
+        const char* instruction = ssh_userauth_kbdint_getinstruction(ses);
+        int         nprompts    = ssh_userauth_kbdint_getnprompts(ses);
+        if (strlen(name) > 0) {
+            printf("%s\n", name);
+        }
+        if (strlen(instruction) > 0) {
+            printf("%s\n", instruction);
+        }
+        for (int iprompt = 0; iprompt < nprompts; iprompt++) {
+            const char* prompt;
+            char        echo;
+            prompt = ssh_userauth_kbdint_getprompt(ses, iprompt, &echo);
+            if (echo) {
+                char buffer[128], * ptr;
+                printf("%s", prompt);
+                if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+                    return SSH_AUTH_ERROR;
+                }
+                buffer[sizeof(buffer) - 1] = '\0';
+                if ((ptr = strchr(buffer, '\n')) != NULL) {
+                    *ptr = '\0';
+                }
+                if (ssh_userauth_kbdint_setanswer(ses, iprompt, buffer) < 0) {
+                    return SSH_AUTH_ERROR;
+                }
+                memset(buffer, 0, strlen(buffer));
+            }
+            else {
+                char* ptr;
+                ptr = getpass(prompt);
+                if (ssh_userauth_kbdint_setanswer(ses, iprompt, ptr) < 0) {
+                    return SSH_AUTH_ERROR;
+                }
+            }
+        }
+        rc = ssh_userauth_kbdint(ses, NULL, NULL);
+    }
+    if (verbosity &&  (rc == SSH_AUTH_ERROR)) {
+        fprintf(stderr, "  * Keyboard-interactive authentication failed: %s\n", ssh_get_error(ses));
+    }
+    return rc;
+}
+
+// Try "none" authentication
+int authenticate_none(ssh_session & ses) {
+    int rc = ssh_userauth_none(ses, NULL);
+    if (verbosity && (rc == SSH_AUTH_ERROR)) {
+        fprintf(stderr, "  * Null authentication failed: %s\n", ssh_get_error(ses));
+    }
+    return rc;
+}
+
+// Try all server-allowed authentication methods
+int authenticate_all(ssh_session & ses) {
+
+    // We must first call the 'none' method to "load" the available methods
+    int rc = ssh_userauth_none(ses, NULL);
+    if (rc == SSH_AUTH_SUCCESS || rc == SSH_AUTH_ERROR) {
+        return rc;
+    }
+
+    // Find out what the server allows
+    int method = ssh_userauth_list(ses, NULL);
+    if (method & SSH_AUTH_METHOD_NONE) {
+        rc = authenticate_none(ses);
+        if (rc == SSH_AUTH_SUCCESS) {
+            if (verbosity) printf("+++ Authenticated by NULL method\n");
+            return rc;
+        }
+        if (verbosity) printf("  + Authentication by NULL method failed\n");
+    }
+    if (method & SSH_AUTH_METHOD_PUBLICKEY) {
+        rc = authenticate_pubkey(ses);
+        if (rc == SSH_AUTH_SUCCESS) {
+            if (verbosity) printf("+++ Authenticated by public key method\n");
+            return rc;
+        }
+        if (verbosity) printf("  + Authentication by public key method failed\n");
+    }
+    if (method & SSH_AUTH_METHOD_INTERACTIVE) {
+        rc = authenticate_kbdint(ses);
+        if (rc == SSH_AUTH_SUCCESS) {
+            if (verbosity) printf("+++ Authenticated by keyboard-interacive method\n");
+            return rc;
+        }
+        if (verbosity) printf("  + Authentication by keyboard-interactive method failed\n");
+    }
+    if (method & SSH_AUTH_METHOD_PASSWORD) {
+        rc = authenticate_password(ses);
+        if (rc == SSH_AUTH_SUCCESS) {
+            if (verbosity) printf("+++ Authenticated by password method\n");
+            return rc;
+        }
+        if (verbosity) printf("  + Authentication by password method failed\n");
+    }
+    return SSH_AUTH_ERROR;
+}
+
 // Start the session to the target system
 ssh_session begin_session() {
 
@@ -145,7 +276,7 @@ ssh_session begin_session() {
     int sshverbose = verbosity >= 2 ? SSH_LOG_PROTOCOL : 0;
     ssh_options_set(ses, SSH_OPTIONS_HOST, addr);
     ssh_options_set(ses, SSH_OPTIONS_PORT, &nport);
-    if (!user) {
+    if (user) {
         ssh_options_set(ses, SSH_OPTIONS_USER, user);
     }
     ssh_options_set(ses, SSH_OPTIONS_LOG_VERBOSITY, &sshverbose);
@@ -157,30 +288,21 @@ ssh_session begin_session() {
         fprintf(stderr, "*** Error connecting: %s\n", ssh_get_error(ses));
         return NULL;
     }
-
-    rc = ssh_userauth_publickey_auto(ses, NULL, NULL);
-    if (rc == SSH_AUTH_ERROR) {
-        fprintf(stderr, "*** Authentication failed: %s\n", ssh_get_error(ses));
-        return NULL;
-    }
-    /*
-       rc = ssh_userauth_password(ses, NULL, argv[0]);
-       if (rc != SSH_AUTH_SUCCESS) {
-        fprintf(stderr, "Error authenticating with password: %s\n",
-                ssh_get_error(ses));
-        ssh_disconnect(ses);
-        ssh_free(ses);
-        exit(-1);
-       }
-     */
     if (verbosity) {
         printf("+++ Connected to %s:%s\n", addr, port);
+    }
+
+    // Authenticate the user
+    if (authenticate_all(ses) != SSH_AUTH_SUCCESS) {
+        fprintf(stderr, "*** Cannot authenticate user %s\n", user ? user : "");
+        return NULL;
     }
     return ses;
 }
 
 // Login to a shell
 ssh_channel login_channel(ssh_session & ses) {
+
     // Start the channel
     ssh_channel chn = ssh_channel_new(ses);
     if (chn == NULL) {
@@ -230,7 +352,6 @@ ssh_channel login_channel(ssh_session & ses) {
 
 // Run a single-character-at-a-time echo test
 int run_echo_test(ssh_channel & chn) {
-
     // Start the echo server
     echo_cmd += "\n";
     int nbytes = ssh_channel_write(chn, echo_cmd.c_str(), echo_cmd.length());
@@ -246,14 +367,13 @@ int run_echo_test(ssh_channel & chn) {
     }
 
     //  Send one character at a time, read back the response, getting timing data as we go
-    uint64_t tot_latency = 0;
-    char wbuf[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n";
-    char rbuf[2];
+    uint64_t              tot_latency = 0;
+    char                  wbuf[]      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n";
+    char                  rbuf[2];
     std::vector<uint64_t> latencies;
-    time_t endt = time(NULL) + time_limit;
+    time_t                endt = time(NULL) + time_limit;
     for (int n = 0; (!char_limit || (n < char_limit))
-                 && (!time_limit || (time(NULL) <= endt)); n++) {
-
+         && (!time_limit || (time(NULL) <= endt)); n++) {
         // Timing: begin
         struct timespec tw;
         clock_gettime(CLOCK_MONOTONIC, &tw);
@@ -289,22 +409,22 @@ int run_echo_test(ssh_channel & chn) {
     uint64_t med_latency;
     std::sort(latencies.begin(), latencies.end());
     uint64_t min_latency = latencies[0];
-    uint64_t max_latency = latencies[num_sent-1];
+    uint64_t max_latency = latencies[num_sent - 1];
     if (num_sent & 1) {
-        med_latency = latencies[(num_sent+1)/2 - 1];
+        med_latency = latencies[(num_sent + 1) / 2 - 1];
     }
     else {
-        med_latency = (latencies[num_sent/2 - 1] + latencies[(num_sent+1)/2 - 1]) / 2;
+        med_latency = (latencies[num_sent / 2 - 1] + latencies[(num_sent + 1) / 2 - 1]) / 2;
     }
     uint64_t stddev = 0;
     printf("--- Minimum Latency: %" PRIu64 " nsec\n", min_latency);
-    printf("---  Median Latency: %" PRIu64 " nsec  +/- %" PRIu64" std dev\n", med_latency, stddev);
+    printf("---  Median Latency: %" PRIu64 " nsec  +/- %" PRIu64 " std dev\n", med_latency, stddev);
     printf("--- Average Latency: %" PRIu64 " nsec\n", avg_latency);
     printf("--- Maximum Latency: %" PRIu64 " nsec\n", max_latency);
     printf("---      Echo count: %d Bytes\n", num_sent);
 
     // Terminate the echo responder
-        // TODO
+    // TODO
     if (verbosity) {
         printf("+++ Echo responder finished\n");
     }
@@ -313,7 +433,6 @@ int run_echo_test(ssh_channel & chn) {
 
 // Run a speed test
 int run_speed_test(ssh_session ses) {
-
     if (verbosity) {
         printf("+++ Speed test started\n");
     }
@@ -351,9 +470,11 @@ int run_speed_test(ssh_session ses) {
     ssh_scp_close(scp);
     ssh_scp_free(scp);
 
-    double duration = double(nsec_diff(t3, t2))/GIGAF;
-    if (duration == 0.0) duration = 0.1;
-    uint64_t Bps = double(SPEED_BUFLEN)/duration;
+    double duration = double(nsec_diff(t3, t2)) / GIGAF;
+    if (duration == 0.0) {
+        duration = 0.1;
+    }
+    uint64_t Bps = double(SPEED_BUFLEN) / duration;
 
     printf("---  Transfer Speed: %" PRIu64 " Bytes/second\n", Bps);
     if (verbosity) {
@@ -378,7 +499,6 @@ void end_session(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Disconnected\n");
     }
-
 }
 
 
@@ -430,6 +550,9 @@ int main(int   argc,
     if (opts[opECMD]) {
         echo_cmd = opts[opECMD].arg;
     }
+    if (opts[opPWD]) {
+        pass = (char*)opts[opPWD].arg;
+    }
     if (opts[opNUM]) {
         char_limit = atoi(opts[opNUM].arg);
     }
@@ -466,8 +589,12 @@ int main(int   argc,
     }
 
     // Run the tests
-    if (do_echo)  run_echo_test(chn);
-    if (do_speed) run_speed_test(ses);
+    if (do_echo) {
+        run_echo_test(chn);
+    }
+    if (do_speed) {
+        run_speed_test(ses);
+    }
 
     // Cleanup
     logout_channel(chn);
