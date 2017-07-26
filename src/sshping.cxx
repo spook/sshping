@@ -26,6 +26,7 @@
 #include <inttypes.h>
 #include <iostream>
 #include <libssh/libssh.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +37,6 @@
 #include "optionparser.h"
 
 #define DEFAULT_COUNT 1000
-#define MEGA         1000000
 #define GIGA      1000000000
 #define GIGAF     1000000000.0
 #define SPEED_BUFLEN 8000000
@@ -106,9 +106,14 @@ uint64_t nsec_diff(const struct timespec & t0,
     return u1 > u0 ? u1 - u0 : u0 - u1;
 }
 
-// nanoseconds to milliseconds
-int to_msec(uint64_t nsecs) {
-    return nsecs / MEGA;
+// Standard deviation
+uint64_t standard_deviation(const std::vector<uint64_t> & list, const uint64_t avg) {
+    if (list.size() < 2) return 0;
+    double sum = 0;
+    for (size_t i=0; i < list.size(); i++) {
+        sum += pow(list[i] > avg ? list[i] - avg : avg - list[i], 2);  // unsigned math, hence the tertiary
+    }
+    return sqrt(sum/double(list.size()-1));
 }
 
 // Consume all pending output and discard it
@@ -345,7 +350,7 @@ ssh_channel login_channel(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
-    printf("--- Login: %d msec\n", to_msec(nsec_diff(t0, t1)));
+    printf("---  ssh Login Time: %" PRIu64 " nsec\n", nsec_diff(t0, t1));
 
     return chn;
 }
@@ -374,7 +379,7 @@ int run_echo_test(ssh_channel & chn) {
     time_t                endt = time(NULL) + time_limit;
     for (int n = 0; (!char_limit || (n < char_limit))
          && (!time_limit || (time(NULL) <= endt)); n++) {
-        // Timing: begin
+
         struct timespec tw;
         clock_gettime(CLOCK_MONOTONIC, &tw);
 
@@ -389,9 +394,10 @@ int run_echo_test(ssh_channel & chn) {
             fprintf(stderr, "\n*** read got %d bytes, expected 1\n", nbytes);
             return SSH_ERROR;
         }
-        // Timing: end
+
         struct timespec tr;
         clock_gettime(CLOCK_MONOTONIC, &tr);
+
         uint64_t latency = nsec_diff(tw, tr);
         latencies.push_back(latency);
         tot_latency += latency;
@@ -416,7 +422,7 @@ int run_echo_test(ssh_channel & chn) {
     else {
         med_latency = (latencies[num_sent / 2 - 1] + latencies[(num_sent + 1) / 2 - 1]) / 2;
     }
-    uint64_t stddev = 0;
+    uint64_t stddev = standard_deviation(latencies, avg_latency);
     printf("--- Minimum Latency: %" PRIu64 " nsec\n", min_latency);
     printf("---  Median Latency: %" PRIu64 " nsec  +/- %" PRIu64 " std dev\n", med_latency, stddev);
     printf("--- Average Latency: %" PRIu64 " nsec\n", avg_latency);
