@@ -43,6 +43,7 @@
 
 struct timespec t0;
 struct timespec t1;
+bool            delimited  = false;
 int             verbosity  = 0;
 int             char_limit = 0;
 int             time_limit = 0;
@@ -66,6 +67,7 @@ struct Arg
 // CLI options and usage help
 enum  { opNONE,
         opNUM,
+        opDLM,
         opECMD,
         opHELP,
         opID,
@@ -81,6 +83,7 @@ const option::Descriptor usage[] = {
     {opNONE, 0, "",  "",          Arg::None, " " },
     {opNONE, 0, "",  "",          Arg::None, "Options:" },
     {opNUM,  0, "c", "count",     Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
+    {opDLM,  0, "d", "delimited", Arg::None, "  -d  --delimited      Use delmiters in big numbers, eg 1,234,567"},
     {opECMD, 0, "e", "echocmd",   Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
     {opHELP, 0, "h", "help",      Arg::None, "  -h  --help           Print usage and exit"},
 //    {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
@@ -96,6 +99,19 @@ const option::Descriptor usage[] = {
 void die(const char* msg) {
     fprintf(stderr, "*** %s\n", msg);
     exit(255);
+}
+
+std::string fmtnum(uint64_t n) {
+    char buf[21];
+    snprintf(buf, sizeof(buf), "%" PRIu64, n);
+    std::string fstr = buf;
+    if (!delimited) return fstr;
+    ssize_t i = fstr.length() - 3;
+    while (i > 0) {
+        fstr.insert(i, ",");
+        i -= 3;
+    }
+    return fstr;
 }
 
 // Nanosecond difference between two timestamps
@@ -350,7 +366,7 @@ ssh_channel login_channel(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
-    printf("---  ssh Login Time: %" PRIu64 " nsec\n", nsec_diff(t0, t1));
+    printf("---  ssh Login Time: %s nsec\n", fmtnum(nsec_diff(t0, t1)).c_str());
 
     return chn;
 }
@@ -423,11 +439,11 @@ int run_echo_test(ssh_channel & chn) {
         med_latency = (latencies[num_sent / 2 - 1] + latencies[(num_sent + 1) / 2 - 1]) / 2;
     }
     uint64_t stddev = standard_deviation(latencies, avg_latency);
-    printf("--- Minimum Latency: %" PRIu64 " nsec\n", min_latency);
-    printf("---  Median Latency: %" PRIu64 " nsec  +/- %" PRIu64 " std dev\n", med_latency, stddev);
-    printf("--- Average Latency: %" PRIu64 " nsec\n", avg_latency);
-    printf("--- Maximum Latency: %" PRIu64 " nsec\n", max_latency);
-    printf("---      Echo count: %d Bytes\n", num_sent);
+    printf("--- Minimum Latency: %s nsec\n", fmtnum(min_latency).c_str());
+    printf("---  Median Latency: %s nsec  +/- %s std dev\n", fmtnum(med_latency).c_str(), fmtnum(stddev).c_str());
+    printf("--- Average Latency: %s nsec\n", fmtnum(avg_latency).c_str());
+    printf("--- Maximum Latency: %s nsec\n", fmtnum(max_latency).c_str());
+    printf("---      Echo count: %s Bytes\n", fmtnum(num_sent).c_str());
 
     // Terminate the echo responder
     // TODO
@@ -482,7 +498,7 @@ int run_speed_test(ssh_session ses) {
     }
     uint64_t Bps = double(SPEED_BUFLEN) / duration;
 
-    printf("---  Transfer Speed: %" PRIu64 " Bytes/second\n", Bps);
+    printf("---  Transfer Speed: %s Bytes/second\n", fmtnum(Bps).c_str());
     if (verbosity) {
         printf("+++ Speed test completed\n");
     }
@@ -553,6 +569,7 @@ int main(int   argc,
         exit(255);
     }
 
+    delimited = opts[opDLM];
     if (opts[opECMD]) {
         echo_cmd = opts[opECMD].arg;
     }
