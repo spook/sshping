@@ -47,6 +47,7 @@ bool            delimited  = false;
 int             verbosity  = 0;
 int             char_limit = 0;
 int             time_limit = 0;
+char*           bnda       = NULL;
 char*           port       = NULL;
 char*           addr       = NULL;
 char*           user       = NULL;
@@ -67,6 +68,7 @@ struct Arg
 
 // CLI options and usage help
 enum  { opNONE,
+        opBIND,
         opNUM,
         opDLM,
         opECMD,
@@ -83,6 +85,7 @@ const option::Descriptor usage[] = {
     {opNONE, 0, "",  "",          Arg::None, "  and file transfer throughput.  Pronounced \"shipping\"." },
     {opNONE, 0, "",  "",          Arg::None, " " },
     {opNONE, 0, "",  "",          Arg::None, "Options:" },
+    {opBIND, 0, "b", "bindaddr",  Arg::Reqd, "  -b  --bindaddr IP    Bind to this source address"},
     {opNUM,  0, "c", "count",     Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
     {opDLM,  0, "d", "delimited", Arg::None, "  -d  --delimited      Use delmiters in big numbers, eg 1,234,567"},
     {opECMD, 0, "e", "echocmd",   Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
@@ -306,6 +309,9 @@ ssh_session begin_session() {
     ssh_options_set(ses, SSH_OPTIONS_LOG_VERBOSITY, &sshverbose);
     if (iden) {
         ssh_options_set(ses, SSH_OPTIONS_IDENTITY, iden);
+    }
+    if (bnda) {
+        ssh_options_set(ses, SSH_OPTIONS_BINDADDR, bnda);
     }
 
     // Try to connect
@@ -584,6 +590,9 @@ int main(int   argc,
     }
     if (opts[opID]) {
         iden = (char*)opts[opID].arg;
+    }
+    if (opts[opBIND]) {
+        bnda = (char*)opts[opBIND].arg;
     }
     if (opts[opNUM]) {
         char_limit = atoi(opts[opNUM].arg);

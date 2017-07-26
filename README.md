@@ -22,6 +22,7 @@ Usage: sshping [options] [user@]addr[:port]
   and file transfer throughput.  Pronounced "shipping".
  
 Options:
+  -b  --bindaddr IP    Bind to this source address
   -c  --count NCHARS   Number of characters to echo, default 1000
   -d  --delimited      Use delmiters in big numbers, eg 1,234,567
   -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null
