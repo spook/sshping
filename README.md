@@ -10,29 +10,31 @@ Usage: sshping [options] [user@]addr[:port]
  
 Options:
   -c  --count NCHARS   Number of characters to echo, default 1000
+  -d  --delimited      Use delmiters in big numbers, eg 1,234,567
   -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null
   -h  --help           Print usage and exit
-  -i  --identity FILE  Identity file, ie ssh private keyfile
   -p  --password PWD   Use password PWD (can be seen, use with care)
-  -r  --runtime SECS   Run for SECS seconds, instead of count limit
-  -t  --tests e|s      Run tests e=echo s=speed; default es=both
-  -v  --verbose        Show more output, use twice for more: -vv
+  -r  --runtests e|s   Run tests e=echo s=speed; default es=both
+  -t  --time SECS      Time limit for echo test
+  -v  --verbose        Show more output, use twice for lots: -vv
 ```
 
 ### Example
 
 ```
-# bin/sshping cheyenne.example.com
---- Login: 1721 msec
---- Minimum Latency: 4351 nsec
----  Median Latency: 16641 nsec  +/- 1032 std dev
---- Average Latency: 174477 nsec
---- Maximum Latency: 1514953 nsec
+# bin/sshping -d cheyenne.example.com
+---  ssh Login Time: 4,509,979,580 nsec
+--- Minimum Latency:        67,054 nsec
+---  Median Latency:   140,029,324 nsec  +/- 42,223,551 std dev
+--- Average Latency:   150,710,435 nsec
+--- Maximum Latency:   351,379,123 nsec
+---      Echo count:            73 Bytes
+---  Transfer Speed:       435,142 Bytes/second
 ```
 
 ### Building
 
-Have the libssh-dev package installed.  From the main directory (where 
+Install the libssh-dev package.  From the main directory (where  
 this README.md file is located), run 'make'.  The binary should be 
 built in the bin/ directory.
 

@@ -88,8 +88,8 @@ const option::Descriptor usage[] = {
     {opHELP, 0, "h", "help",      Arg::None, "  -h  --help           Print usage and exit"},
 //    {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opPWD,  0, "p", "password",  Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
-    {opTIME, 0, "r", "runtime",   Arg::Reqd, "  -r  --runtime SECS   Run for SECS seconds, instead of count limit"},
-    {opTEST, 0, "t", "tests",     Arg::Reqd, "  -t  --tests e|s      Run tests e=echo s=speed; default es=both"},
+    {opTEST, 0, "r", "runtests",  Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
+    {opTIME, 0, "t", "time",      Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
     {opVERB, 0, "v", "verbose",   Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
     {0,0,0,0,0,0}
 };
@@ -127,7 +127,7 @@ uint64_t standard_deviation(const std::vector<uint64_t> & list, const uint64_t a
     if (list.size() < 2) return 0;
     double sum = 0;
     for (size_t i=0; i < list.size(); i++) {
-        sum += pow(list[i] > avg ? list[i] - avg : avg - list[i], 2);  // unsigned math, hence the tertiary
+        sum += pow(list[i] > avg ? list[i] - avg : avg - list[i], 2);  // unsigned math, hence the ternary
     }
     return sqrt(sum/double(list.size()-1));
 }
@@ -295,11 +295,14 @@ ssh_session begin_session() {
     // Set options
     int nport      = atoi(port);
     int sshverbose = verbosity >= 2 ? SSH_LOG_PROTOCOL : 0;
+    int stricthost = 0;
     ssh_options_set(ses, SSH_OPTIONS_HOST, addr);
     ssh_options_set(ses, SSH_OPTIONS_PORT, &nport);
     if (user) {
         ssh_options_set(ses, SSH_OPTIONS_USER, user);
     }
+    ssh_options_set(ses, SSH_OPTIONS_COMPRESSION, "no");
+    ssh_options_set(ses, SSH_OPTIONS_STRICTHOSTKEYCHECK, &stricthost);
     ssh_options_set(ses, SSH_OPTIONS_LOG_VERBOSITY, &sshverbose);
 
     // Try to connect
@@ -366,7 +369,7 @@ ssh_channel login_channel(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
-    printf("---  ssh Login Time: %s nsec\n", fmtnum(nsec_diff(t0, t1)).c_str());
+    printf("---  ssh Login Time: %13s nsec\n", fmtnum(nsec_diff(t0, t1)).c_str());
 
     return chn;
 }
@@ -439,11 +442,11 @@ int run_echo_test(ssh_channel & chn) {
         med_latency = (latencies[num_sent / 2 - 1] + latencies[(num_sent + 1) / 2 - 1]) / 2;
     }
     uint64_t stddev = standard_deviation(latencies, avg_latency);
-    printf("--- Minimum Latency: %s nsec\n", fmtnum(min_latency).c_str());
-    printf("---  Median Latency: %s nsec  +/- %s std dev\n", fmtnum(med_latency).c_str(), fmtnum(stddev).c_str());
-    printf("--- Average Latency: %s nsec\n", fmtnum(avg_latency).c_str());
-    printf("--- Maximum Latency: %s nsec\n", fmtnum(max_latency).c_str());
-    printf("---      Echo count: %s Bytes\n", fmtnum(num_sent).c_str());
+    printf("--- Minimum Latency: %13s nsec\n", fmtnum(min_latency).c_str());
+    printf("---  Median Latency: %13s nsec  +/- %s std dev\n", fmtnum(med_latency).c_str(), fmtnum(stddev).c_str());
+    printf("--- Average Latency: %13s nsec\n", fmtnum(avg_latency).c_str());
+    printf("--- Maximum Latency: %13s nsec\n", fmtnum(max_latency).c_str());
+    printf("---      Echo count: %13s Bytes\n", fmtnum(num_sent).c_str());
 
     // Terminate the echo responder
     // TODO
@@ -464,12 +467,16 @@ int run_speed_test(ssh_session ses) {
         fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
         return SSH_ERROR;
     }
+
     int rc = ssh_scp_init(scp);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
         ssh_scp_free(scp);
         return rc;
     }
+
+    struct timespec t2;
+    clock_gettime(CLOCK_MONOTONIC, &t2);
 
     char buf[SPEED_BUFLEN];
     memset(buf, 's', SPEED_BUFLEN);
@@ -479,26 +486,22 @@ int run_speed_test(ssh_session ses) {
         return rc;
     }
 
-    struct timespec t2;
-    clock_gettime(CLOCK_MONOTONIC, &t2);
     rc = ssh_scp_write(scp, buf, SPEED_BUFLEN);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
         return rc;
     }
-    struct timespec t3;
-    clock_gettime(CLOCK_MONOTONIC, &t3);
 
     ssh_scp_close(scp);
     ssh_scp_free(scp);
 
+    struct timespec t3;
+    clock_gettime(CLOCK_MONOTONIC, &t3);
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
-    if (duration == 0.0) {
-        duration = 0.1;
-    }
+    if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(SPEED_BUFLEN) / duration;
 
-    printf("---  Transfer Speed: %s Bytes/second\n", fmtnum(Bps).c_str());
+    printf("---  Transfer Speed: %13s Bytes/second\n", fmtnum(Bps).c_str());
     if (verbosity) {
         printf("+++ Speed test completed\n");
     }
