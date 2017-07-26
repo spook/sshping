@@ -51,6 +51,7 @@ char*           port       = NULL;
 char*           addr       = NULL;
 char*           user       = NULL;
 char*           pass       = NULL;
+char*           iden       = NULL;
 std::string     echo_cmd   = "cat > /dev/null";
 
 /* *INDENT-OFF* */
@@ -86,7 +87,7 @@ const option::Descriptor usage[] = {
     {opDLM,  0, "d", "delimited", Arg::None, "  -d  --delimited      Use delmiters in big numbers, eg 1,234,567"},
     {opECMD, 0, "e", "echocmd",   Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
     {opHELP, 0, "h", "help",      Arg::None, "  -h  --help           Print usage and exit"},
-//    {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
+    {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opPWD,  0, "p", "password",  Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
     {opTEST, 0, "r", "runtests",  Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
     {opTIME, 0, "t", "time",      Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
@@ -293,17 +294,19 @@ ssh_session begin_session() {
     }
 
     // Set options
-    int nport      = atoi(port);
     int sshverbose = verbosity >= 2 ? SSH_LOG_PROTOCOL : 0;
     int stricthost = 0;
     ssh_options_set(ses, SSH_OPTIONS_HOST, addr);
-    ssh_options_set(ses, SSH_OPTIONS_PORT, &nport);
+    ssh_options_set(ses, SSH_OPTIONS_PORT_STR, port);
     if (user) {
         ssh_options_set(ses, SSH_OPTIONS_USER, user);
     }
     ssh_options_set(ses, SSH_OPTIONS_COMPRESSION, "no");
     ssh_options_set(ses, SSH_OPTIONS_STRICTHOSTKEYCHECK, &stricthost);
     ssh_options_set(ses, SSH_OPTIONS_LOG_VERBOSITY, &sshverbose);
+    if (iden) {
+        ssh_options_set(ses, SSH_OPTIONS_IDENTITY, iden);
+    }
 
     // Try to connect
     clock_gettime(CLOCK_MONOTONIC, &t0);
@@ -578,6 +581,9 @@ int main(int   argc,
     }
     if (opts[opPWD]) {
         pass = (char*)opts[opPWD].arg;
+    }
+    if (opts[opID]) {
+        iden = (char*)opts[opID].arg;
     }
     if (opts[opNUM]) {
         char_limit = atoi(opts[opNUM].arg);
