@@ -14,6 +14,9 @@ For the echo test, you may specify a character count limit (-c) or a test
 time limit (-t), and also the command (-e) used on the remote system that
 echoes characters back.
 
+For the speed test, you may specify the number of megabytes to send (-s)
+and the target location for the copies (-z).
+
 ## Usage
 ```
 Usage: sshping [options] [user@]addr[:port]
@@ -30,8 +33,10 @@ Options:
   -i  --identity FILE  Identity file, ie ssh private keyfile
   -p  --password PWD   Use password PWD (can be seen, use with care)
   -r  --runtests e|s   Run tests e=echo s=speed; default es=both
+  -s  --size MB        For speed test, send MB megabytes; default=8 MB
   -t  --time SECS      Time limit for echo test
   -v  --verbose        Show more output, use twice for lots: -vv
+  -z  --target PATH    Target location for speed test; default=/dev/null
 ```
 
 ### Example

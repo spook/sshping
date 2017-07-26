@@ -48,6 +48,7 @@ int             verbosity  = 0;
 int             char_limit = 0;
 int             time_limit = 0;
 int             size       = 8;
+char*           tgt        = (char*)"/dev/null";
 char*           bynd       = NULL;
 char*           port       = NULL;
 char*           addr       = NULL;
@@ -79,7 +80,8 @@ enum  { opNONE,
         opSIZE,
         opTIME,
         opTEST,
-        opVERB };
+        opVERB,
+        opTGT };
 const option::Descriptor usage[] = {
     {opNONE, 0, "",  "",          Arg::None, "Usage: sshping [options] [user@]addr[:port]" },
     {opNONE, 0, "",  "",          Arg::None, " " },
@@ -98,6 +100,7 @@ const option::Descriptor usage[] = {
     {opSIZE, 0, "s", "size",      Arg::Reqd, "  -s  --size MB        For speed test, send MB megabytes; default=8 MB"},
     {opTIME, 0, "t", "time",      Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
     {opVERB, 0, "v", "verbose",   Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
+    {opTGT,  0, "z", "target",    Arg::Reqd, "  -z  --target PATH    Target location for speed test; default=/dev/null"},
     {0,0,0,0,0,0}
 };
 /* *INDENT-ON* */
@@ -479,7 +482,7 @@ int run_speed_test(ssh_session ses) {
     }
     printf("---   Transfer Size: %13s Bytes\n", fmtnum(size * MEGA).c_str());
 
-    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, "/dev/null");
+    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, tgt);
     if (scp == NULL) {
         fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
         return SSH_ERROR;
@@ -602,6 +605,9 @@ int main(int   argc,
     }
     if (opts[opBIND]) {
         bynd = (char*)opts[opBIND].arg;
+    }
+    if (opts[opTGT]) {
+        tgt  = (char*)opts[opTGT].arg;
     }
     if (opts[opSIZE]) {
         size = atoi(opts[opSIZE].arg);
