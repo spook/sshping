@@ -37,9 +37,9 @@
 #include "optionparser.h"
 
 #define DEFAULT_COUNT 1000
+#define MEGA         1000000
 #define GIGA      1000000000
 #define GIGAF     1000000000.0
-#define SPEED_BUFLEN 8000000
 
 struct timespec t0;
 struct timespec t1;
@@ -47,7 +47,8 @@ bool            delimited  = false;
 int             verbosity  = 0;
 int             char_limit = 0;
 int             time_limit = 0;
-char*           bnda       = NULL;
+int             size       = 8;
+char*           bynd       = NULL;
 char*           port       = NULL;
 char*           addr       = NULL;
 char*           user       = NULL;
@@ -75,6 +76,7 @@ enum  { opNONE,
         opHELP,
         opID,
         opPWD,
+        opSIZE,
         opTIME,
         opTEST,
         opVERB };
@@ -93,6 +95,7 @@ const option::Descriptor usage[] = {
     {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opPWD,  0, "p", "password",  Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
     {opTEST, 0, "r", "runtests",  Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
+    {opSIZE, 0, "s", "size",      Arg::Reqd, "  -s  --size MB        For speed test, send MB megabytes; default=8 MB"},
     {opTIME, 0, "t", "time",      Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
     {opVERB, 0, "v", "verbose",   Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
     {0,0,0,0,0,0}
@@ -310,8 +313,8 @@ ssh_session begin_session() {
     if (iden) {
         ssh_options_set(ses, SSH_OPTIONS_IDENTITY, iden);
     }
-    if (bnda) {
-        ssh_options_set(ses, SSH_OPTIONS_BINDADDR, bnda);
+    if (bynd) {
+        ssh_options_set(ses, SSH_OPTIONS_BINDADDR, bynd);
     }
 
     // Try to connect
@@ -406,12 +409,12 @@ int run_echo_test(ssh_channel & chn) {
     std::vector<uint64_t> latencies;
     time_t                endt = time(NULL) + time_limit;
     for (int n = 0; (!char_limit || (n < char_limit))
-         && (!time_limit || (time(NULL) <= endt)); n++) {
+                 && (!time_limit || (time(NULL) <= endt)); n++) {
 
         struct timespec tw;
         clock_gettime(CLOCK_MONOTONIC, &tw);
 
-        int i = n % (sizeof(wbuf) - 1);
+        int i = n % (sizeof(wbuf) - 2);
         nbytes = ssh_channel_write(chn, &wbuf[i], 1);
         if (nbytes != 1) {
             fprintf(stderr, "\n*** write put %d bytes, expected 1\n", nbytes);
@@ -420,6 +423,10 @@ int run_echo_test(ssh_channel & chn) {
         nbytes = ssh_channel_read_timeout(chn, &rbuf, 1, /*is-stderr*/ 0, 2500);
         if (nbytes != 1) {
             fprintf(stderr, "\n*** read got %d bytes, expected 1\n", nbytes);
+            return SSH_ERROR;
+        }
+        if (wbuf[i] != rbuf[0]) {
+            fprintf(stderr, "\n*** Echo failed, sent %%x%2.2x yet got %%x%2.2x\n", wbuf[i], rbuf[0]);
             return SSH_ERROR;
         }
 
@@ -433,7 +440,7 @@ int run_echo_test(ssh_channel & chn) {
 
     int num_sent = latencies.size();
     if (!num_sent) {
-        fprintf(stderr, "*** Unable to get any echos in give time\n");
+        fprintf(stderr, "*** Unable to get any echos in given time\n");
         return SSH_ERROR;
     }
     if (num_sent < 13) {
@@ -470,6 +477,7 @@ int run_speed_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Speed test started\n");
     }
+    printf("---   Transfer Size: %13s Bytes\n", fmtnum(size * MEGA).c_str());
 
     ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, "/dev/null");
     if (scp == NULL) {
@@ -487,20 +495,21 @@ int run_speed_test(ssh_session ses) {
     struct timespec t2;
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
-    char buf[SPEED_BUFLEN];
-    memset(buf, 's', SPEED_BUFLEN);
-    rc = ssh_scp_push_file(scp, "speedtest.tmp", SPEED_BUFLEN, S_IRUSR);
-    if (rc != SSH_OK) {
-        fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
-        return rc;
-    }
+    char buf[MEGA];
+    memset(buf, 's', MEGA);
+    for (int i=0; i < size; i++) {
+        rc = ssh_scp_push_file(scp, "speedtest.tmp", MEGA, S_IRUSR);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
+            return rc;
+        }
 
-    rc = ssh_scp_write(scp, buf, SPEED_BUFLEN);
-    if (rc != SSH_OK) {
-        fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
-        return rc;
+        rc = ssh_scp_write(scp, buf, MEGA);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
+            return rc;
+        }
     }
-
     ssh_scp_close(scp);
     ssh_scp_free(scp);
 
@@ -508,9 +517,9 @@ int run_speed_test(ssh_session ses) {
     clock_gettime(CLOCK_MONOTONIC, &t3);
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
     if (duration == 0.0) duration = 0.000001;
-    uint64_t Bps = double(SPEED_BUFLEN) / duration;
+    uint64_t Bps = double(size * MEGA) / duration;
 
-    printf("---  Transfer Speed: %13s Bytes/second\n", fmtnum(Bps).c_str());
+    printf("---   Transfer Rate: %13s Bytes/second\n", fmtnum(Bps).c_str());
     if (verbosity) {
         printf("+++ Speed test completed\n");
     }
@@ -592,7 +601,10 @@ int main(int   argc,
         iden = (char*)opts[opID].arg;
     }
     if (opts[opBIND]) {
-        bnda = (char*)opts[opBIND].arg;
+        bynd = (char*)opts[opBIND].arg;
+    }
+    if (opts[opSIZE]) {
+        size = atoi(opts[opSIZE].arg);
     }
     if (opts[opNUM]) {
         char_limit = atoi(opts[opNUM].arg);
@@ -607,6 +619,10 @@ int main(int   argc,
     bool do_speed = !opts[opTEST] || strchr(opts[opTEST].arg, 's');
     if (do_echo && (char_limit <= 0) && (time_limit <= 0)) {
         fprintf(stderr, "*** For the echo test, a time limit or character count is required\n");
+        exit(255);
+    }
+    if (do_speed && (size <= 0)) {
+        fprintf(stderr, "*** For the speed test, the transfer size must be 1 MB or more\n");
         exit(255);
     }
     verbosity = opts[opVERB].count();

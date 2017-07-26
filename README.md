@@ -7,7 +7,7 @@ Use this utility to test the performance of interactive ssh sessions
 or scp file transfers.  It uses ssh to log into a remote system, then 
 runs two tests: the first test sends one character at a time, waiting
 for each character to be returned while it records the latency time
-for each.  The second test sends over scp an 8MB dummy file to /dev/null
+for each.  The second test sends a dummy file over scp to /dev/null
 on the remote system.
 
 For the echo test, you may specify a character count limit (-c) or a test
@@ -38,13 +38,14 @@ Options:
 
 ```
 # bin/sshping -d cheyenne.example.com
----  ssh Login Time: 4,509,979,580 nsec
---- Minimum Latency:        67,054 nsec
----  Median Latency:   140,029,324 nsec  +/- 42,223,551 std dev
---- Average Latency:   150,710,435 nsec
---- Maximum Latency:   351,379,123 nsec
+---  ssh Login Time: 4,286,336,535 nsec
+--- Minimum Latency:   134,679,785 nsec
+---  Median Latency:   139,936,318 nsec  +/- 20,996,458 std dev
+--- Average Latency:   145,943,038 nsec
+--- Maximum Latency:   254,836,720 nsec
 ---      Echo count:         1,000 Bytes
----  Transfer Speed:       435,142 Bytes/second
+---   Transfer Size:     8,000,000 Bytes
+---   Transfer Rate:       250,622 Bytes/second
 ```
 
 ## Building
