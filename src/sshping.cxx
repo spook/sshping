@@ -34,12 +34,20 @@
 #include <time.h>
 #include <vector>
 
+#if (LIBSSH_VERSION_MAJOR == 0) && (LIBSSH_VERSION_MINOR < 6)
+  #error "*** libssh must be version 0.6 or later"
+#endif
+
 #include "optionparser.h"
 
 #define DEFAULT_COUNT 1000
 #define MEGA         1000000
 #define GIGA      1000000000
 #define GIGAF     1000000000.0
+
+#ifndef PRIu64
+  #define PRIu64 "llu"
+#endif
 
 struct timespec t0;
 struct timespec t1;

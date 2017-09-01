@@ -1,13 +1,11 @@
 default: sshping
 
-sshping: src/sshping.cxx /usr/include/libssh/libssh.h /usr/lib/x86_64-linux-gnu/libssh.so
-	g++ -g -I ext/ -o bin/sshping src/sshping.cxx /usr/lib/x86_64-linux-gnu/libssh.so
+sshping: src/sshping.cxx /usr/include/libssh/libssh.h
+	g++ -I ext/ -o bin/sshping src/sshping.cxx -lssh
 
-/usr/include/libssh/libssh.h /usr/lib/x86_64-linux-gnu/libssh.so:
-	echo '*** Please install libssh-dev, or alter this Makefile for libssh.so'
+/usr/include/libssh/libssh.h
+	echo '*** Please install libssh-dev, libssh-devel, or similar package'
 	exit 2
 
-test: sshping
-	#TBD
 
 
