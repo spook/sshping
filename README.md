@@ -55,10 +55,7 @@ Options:
 
 ## Building
 
-Install the libssh-dev package.  From the main directory (where  
-this README.md file is located), run 'make'.  The binary should be 
-built in the bin/ directory.
-
-Note: You may have to alter the `Makefile` to point to the location of 
-your libssh.so file.
+Install the libssh-dev (or libssh-devel) package, version 0.6 or later.
+From the main directory (where this README.md file is located), run 'make'.
+The binary will be in the bin/ directory.
 
