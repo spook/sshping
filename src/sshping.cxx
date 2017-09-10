@@ -52,9 +52,11 @@
 struct timespec t0;
 struct timespec t1;
 bool            delimited  = false;
+int             zero       = 0;
 int             verbosity  = 0;
 int             char_limit = 0;
 int             time_limit = 0;
+int             contim     = 10;
 int             size       = 8;
 char*           tgt        = (char*)"/dev/null";
 char*           bynd       = NULL;
@@ -80,6 +82,7 @@ struct Arg
 enum  { opNONE,
         opBIND,
         opNUM,
+        opCTIM,
         opDLM,
         opECMD,
         opHELP,
@@ -91,24 +94,25 @@ enum  { opNONE,
         opVERB,
         opTGT };
 const option::Descriptor usage[] = {
-    {opNONE, 0, "",  "",          Arg::None, "Usage: sshping [options] [user@]addr[:port]" },
-    {opNONE, 0, "",  "",          Arg::None, " " },
-    {opNONE, 0, "",  "",          Arg::None, "  SSH-based ping that measures interactive character echo latency" },
-    {opNONE, 0, "",  "",          Arg::None, "  and file transfer throughput.  Pronounced \"shipping\"." },
-    {opNONE, 0, "",  "",          Arg::None, " " },
-    {opNONE, 0, "",  "",          Arg::None, "Options:" },
-    {opBIND, 0, "b", "bindaddr",  Arg::Reqd, "  -b  --bindaddr IP    Bind to this source address"},
-    {opNUM,  0, "c", "count",     Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
-    {opDLM,  0, "d", "delimited", Arg::None, "  -d  --delimited      Use delmiters in big numbers, eg 1,234,567"},
-    {opECMD, 0, "e", "echocmd",   Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
-    {opHELP, 0, "h", "help",      Arg::None, "  -h  --help           Print usage and exit"},
-    {opID,   0, "i", "identity",  Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
-    {opPWD,  0, "p", "password",  Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
-    {opTEST, 0, "r", "runtests",  Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
-    {opSIZE, 0, "s", "size",      Arg::Reqd, "  -s  --size MB        For speed test, send MB megabytes; default=8 MB"},
-    {opTIME, 0, "t", "time",      Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
-    {opVERB, 0, "v", "verbose",   Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
-    {opTGT,  0, "z", "target",    Arg::Reqd, "  -z  --target PATH    Target location for speed test; default=/dev/null"},
+    {opNONE, 0, "",  "",             Arg::None, "Usage: sshping [options] [user@]addr[:port]" },
+    {opNONE, 0, "",  "",             Arg::None, " " },
+    {opNONE, 0, "",  "",             Arg::None, "  SSH-based ping that measures interactive character echo latency" },
+    {opNONE, 0, "",  "",             Arg::None, "  and file transfer throughput.  Pronounced \"shipping\"." },
+    {opNONE, 0, "",  "",             Arg::None, " " },
+    {opNONE, 0, "",  "",             Arg::None, "Options:" },
+    {opBIND, 0, "b", "bindaddr",     Arg::Reqd, "  -b  --bindaddr IP    Bind to this source address"},
+    {opNUM,  0, "c", "count",        Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
+    {opDLM,  0, "d", "delimited",    Arg::None, "  -d  --delimited      Use delmiters in big numbers, eg 1,234,567"},
+    {opECMD, 0, "e", "echocmd",      Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
+    {opHELP, 0, "h", "help",         Arg::None, "  -h  --help           Print usage and exit"},
+    {opID,   0, "i", "identity",     Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
+    {opPWD,  0, "p", "password",     Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
+    {opTEST, 0, "r", "runtests",     Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
+    {opSIZE, 0, "s", "size",         Arg::Reqd, "  -s  --size MB        For speed test, send MB megabytes; default=8 MB"},
+    {opTIME, 0, "t", "time",         Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
+    {opCTIM, 0, "T", "connect-time", Arg::Reqd, "  -T  --connect-time S Time limit for ssh connection; default 10 sec"},
+    {opVERB, 0, "v", "verbose",      Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
+    {opTGT,  0, "z", "target",       Arg::Reqd, "  -z  --target PATH    Target location for speed test; default=/dev/null"},
     {0,0,0,0,0,0}
 };
 /* *INDENT-ON* */
@@ -317,6 +321,10 @@ ssh_session begin_session() {
     ssh_options_set(ses, SSH_OPTIONS_PORT_STR, port);
     if (user) {
         ssh_options_set(ses, SSH_OPTIONS_USER, user);
+    }
+    if (contim) {
+        ssh_options_set(ses, SSH_OPTIONS_TIMEOUT, &contim);
+        ssh_options_set(ses, SSH_OPTIONS_TIMEOUT_USEC, &zero);
     }
     ssh_options_set(ses, SSH_OPTIONS_COMPRESSION, "no");
     ssh_options_set(ses, SSH_OPTIONS_STRICTHOSTKEYCHECK, &stricthost);
@@ -625,6 +633,9 @@ int main(int   argc,
     }
     if (opts[opTIME]) {
         time_limit = atoi(opts[opTIME].arg);
+    }
+    if (opts[opCTIM]) {
+        contim = atoi(opts[opCTIM].arg);
     }
     if (!opts[opNUM] && !opts[opTIME]) {
         char_limit = DEFAULT_COUNT;
