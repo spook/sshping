@@ -102,7 +102,7 @@ const option::Descriptor usage[] = {
     {opNONE, 0, "",  "",             Arg::None, "Options:" },
     {opBIND, 0, "b", "bindaddr",     Arg::Reqd, "  -b  --bindaddr IP    Bind to this source address"},
     {opNUM,  0, "c", "count",        Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
-    {opDLM,  0, "d", "delimited",    Arg::None, "  -d  --delimited      Use delmiters in big numbers, eg 1,234,567"},
+    {opDLM,  0, "d", "delimited",    Arg::None, "  -d  --delimited      Use delimiters in big numbers, eg 1,234,567"},
     {opECMD, 0, "e", "echocmd",      Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
     {opHELP, 0, "h", "help",         Arg::None, "  -h  --help           Print usage and exit"},
     {opID,   0, "i", "identity",     Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
@@ -112,7 +112,7 @@ const option::Descriptor usage[] = {
     {opTIME, 0, "t", "time",         Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
     {opCTIM, 0, "T", "connect-time", Arg::Reqd, "  -T  --connect-time S Time limit for ssh connection; default 10 sec"},
     {opVERB, 0, "v", "verbose",      Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
-    {opTGT,  0, "z", "target",       Arg::Reqd, "  -z  --target PATH    Target location for speed test; default=/dev/null"},
+    {opTGT,  0, "z", "target",       Arg::Reqd, "  -z  --target PATH    Target location for xfer test; default=/dev/null"},
     {0,0,0,0,0,0}
 };
 /* *INDENT-ON* */
