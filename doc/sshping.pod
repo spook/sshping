@@ -1,0 +1,176 @@
+=head1 NAME
+
+sshping - measure character-echo latency and bandwidth for an interactive ssh session
+
+=head1 SYNOPSIS
+
+sshping [options] [user@]addr[:port]
+
+=head1 DESCRIPTION
+
+B<sshping> is an SSH-based ping-like utility that measures interactive character echo latency
+and file transfer throughput.  It's pronounced "shipping".
+
+=head1 PARAMETERS
+
+user
+    Username for the login to the remote system.
+    If omitted, it defaults to the current username on the local system.
+
+addr
+    IP name or address of the target system.
+
+port
+    tcp port number for the ssh daemon on the target system.
+    This must be a number, service names like "ssh" are not supported.
+    Default is 22.
+
+=head1 OPTIONS
+
+Short and long forms of options take the same arguments as shown.
+
+-b, --bindaddr IP
+    Bind to this source address
+
+-c, --count NCHARS
+    Number of characters to echo, default 1000
+
+-d, --delimited
+    Use delmiters in big numbers, eg 1,234,567
+
+-e, --echocmd CMD
+    Use CMD for echo command; default: cat > /dev/null
+    For the character echo test, this command is issued to the
+    remote system (sshping adds the newline) so that anything
+    "typed" is echoed back.
+
+-h,  --help
+    Print usage and exit
+
+-i, --identity FILE
+    Identity file, ie ssh private keyfile
+
+-p, --password PWD
+    Use password PWD (can be seen, use with care)
+
+-r, --runtests e|s
+    Run these tests e=echo s=speed; default es=both
+
+-s, --size MB
+    For transfer speed test (the scp test), send MB megabytes; default=8 MB
+
+-t, --time SECS
+    Time limit for echo test.  We'll stop the test soon after this number of
+    seconds, or the --couont number of characters, whichever comes first.
+    Timing starts after the ssh login and shell creation.
+
+-v, --verbose
+    Show more output, use twice for lots: -vv
+
+-z, --target PATH
+    Target location for scp transfer speed test; default=/dev/null
+    A 1MB dummy file is repeatedly copied to this location to test
+    the transfer speed.
+
+
+=head1 OUTPUT FIELDS
+
+=head2 Connection
+
+ssh Login Time
+    Time in nanoseconds to establish the tcp network connection, authenticate, 
+    and form the ssh session, then start an ssh channel, launch a remote shell,
+    login to the remote system and read back any logon banners. 
+
+    If an interactive password is needed to login, the time to supply the password 
+    is included as well - so type fast!
+
+=head2 Character Echo Tests
+
+The I<character echo test> issues a single byte to the remote system,
+then waits for it to be echoed back.  It checks that the returned character
+is correct, then notes the wallclock time elapsed for the round-trip.  
+This is repeated with a different character until either the test time limit
+is expired or the character count limit is reached.
+
+Since only a subset of the printable ASCII character set is used, bytes == characters.
+
+Minimum Latency
+    Fastest (lowest) round-trip time for a character echo, in nanoseconds.
+
+Median Latency
+    The median round-trip time for a character echo.  The median is
+    not the same as the average; think of this as the "typical" latency.
+    You probably want this number when you think average.
+
+    The standard deviation is also shown.  Yes, it can be greater than
+    the median!
+
+Average Latency
+    The average (mean) round-trip time for a character echo, in nanoseconds.
+
+Maximum Latency
+    The slowest (highest) round-trip time for a character echo, in nanoseconds.
+
+Echo count
+    The number of bytes echoed during the test.
+
+=head2 Transfer Speed Test
+
+The file transfer I<speed test> measures the throughput rate,
+in bytes per second (Bps) of the scp subsystem.  This is the
+subsystem typically used when copying files over ssh.
+
+The test creates a random 1MB file then copies it to
+the target system, measuring the time required for the transfer.
+The file is repeatedly copied to get transfer sizes greater 
+than 1MB.
+
+Transfer Size
+    Number of bytes transferred during the test.
+
+Transfer Rate
+    Throughput speed for the file transfer, in Bytes/second.
+
+
+=head1 EXAMPLES
+
+    # bin/sshping -d cheyenne.example.com
+    ---  ssh Login Time: 4,286,336,535 nsec
+    --- Minimum Latency:   134,679,785 nsec
+    ---  Median Latency:   139,936,318 nsec  +/- 20,996,458 std dev
+    --- Average Latency:   145,943,038 nsec
+    --- Maximum Latency:   254,836,720 nsec
+    ---      Echo count:         1,000 Bytes
+    ---   Transfer Size:     8,000,000 Bytes
+    ---   Transfer Rate:       250,622 Bytes/second
+
+
+=head1 AUTHOR
+
+Written by Uncle Spook.  https://github.com/spook/sshping
+
+=head1 LICENSE
+
+Copyright (c) 2017 by Uncle Spook
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
