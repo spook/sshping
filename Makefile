@@ -1,6 +1,8 @@
 default: sshping
 
-sshping: src/sshping.cxx /usr/include/libssh/libssh.h
+sshping: bin/sshping
+
+bin/sshping: src/sshping.cxx /usr/include/libssh/libssh.h
 	g++ -I ext/ -o bin/sshping src/sshping.cxx -lssh
 
 /usr/include/libssh/libssh.h:

@@ -308,6 +308,9 @@ int authenticate_all(ssh_session & ses) {
 ssh_session begin_session() {
 
     // Create session
+    if (verbosity) {
+        printf("+++ Attempting connection to %s:%s\n", addr, port);
+    }
     ssh_session ses;
     ses = ssh_new();
     if (ses == NULL) {
@@ -407,6 +410,7 @@ ssh_channel login_channel(ssh_session & ses) {
 
 // Run a single-character-at-a-time echo test
 int run_echo_test(ssh_channel & chn) {
+
     // Start the echo server
     echo_cmd += "\n";
     int nbytes = ssh_channel_write(chn, echo_cmd.c_str(), echo_cmd.length());
@@ -493,6 +497,8 @@ int run_echo_test(ssh_channel & chn) {
 
 // Run a speed test
 int run_speed_test(ssh_session ses) {
+
+    // Inits
     if (verbosity) {
         printf("+++ Speed test started\n");
     }
