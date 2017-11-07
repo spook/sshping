@@ -27,7 +27,7 @@ Usage: sshping [options] [user@]addr[:port]
 Options:
   -b  --bindaddr IP    Bind to this source address
   -c  --count NCHARS   Number of characters to echo, default 1000
-  -d  --delimited      Use delmiters in big numbers, eg 1,234,567
+  -d  --delimited      Use delimiters in big numbers, eg 1,234,567
   -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null
   -h  --help           Print usage and exit
   -i  --identity FILE  Identity file, ie ssh private keyfile
@@ -35,8 +35,9 @@ Options:
   -r  --runtests e|s   Run tests e=echo s=speed; default es=both
   -s  --size MB        For speed test, send MB megabytes; default=8 MB
   -t  --time SECS      Time limit for echo test
+  -T  --connect-time S Time limit for ssh connection; default 10 sec
   -v  --verbose        Show more output, use twice for lots: -vv
-  -z  --target PATH    Target location for speed test; default=/dev/null
+  -z  --target PATH    Target location for xfer test; default=/dev/null
 ```
 
 ### Example
@@ -57,5 +58,21 @@ Options:
 
 Install the libssh-dev (or libssh-devel) package, version 0.6 or later.
 From the main directory (where this README.md file is located), run 'make'.
-The binary will be in the bin/ directory.
+The binary will be in the bin/ directory.  You may copy this to your
+system binary location, for example:
+
+    sudo cp bin/sshping /usr/local/bin/
+    sudo chown root.root /usr/local/bin/sshping
+    sudo chmod 555 /usr/local/bin/sshping
+
+To build the man pages, install the pod2man utility (you may already
+have it installed, it's often part of standard Perl). Then run 'make man'.
+The uncompressed man page will be in the doc/ directory.
+You can view it from there (man doc/sshping.8) but normally it's placed
+in /usr/share/man/man8 in gzip'd format:
+
+    sudo cp doc/sshping.8 /usr/share/man/man8/
+    sudo gzip /usr/share/man/man8/sshping.8
+    sudo chown root.root /usr/share/man/man8/sshping.8.gz
+    sudo chmod 644 /usr/share/man/man8/sshping.8.gz
 
