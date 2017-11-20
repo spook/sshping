@@ -58,8 +58,8 @@ Options:
 
 Install the libssh-dev (or libssh-devel) package, version 0.6 or later.
 From the main directory (where this README.md file is located), run 'make'.
-The binary will be in the bin/ directory.  You may copy this to your
-system binary location, for example:
+The resultant binary will be in the bin/ directory.  You may copy this to 
+your system binary location, for example:
 
     sudo cp bin/sshping /usr/local/bin/
     sudo chown root.root /usr/local/bin/sshping
@@ -67,7 +67,7 @@ system binary location, for example:
 
 To build the man pages, install the pod2man utility (you may already
 have it installed, it's often part of standard Perl). Then run 'make man'.
-The uncompressed man page will be in the doc/ directory.
+The resulting uncompressed man page will be in the doc/ directory.
 You can view it from there (man doc/sshping.8) but normally it's placed
 in /usr/share/man/man8 in gzip'd format:
 
