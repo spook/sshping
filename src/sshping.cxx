@@ -576,7 +576,8 @@ int main(int   argc,
     // Process the command line
     argc -= (argc > 0);argv += (argc > 0); // skip program name argv[0] if present
     option::Stats  stats(usage, argc, argv);
-    option::Option opts[stats.options_max], buffer[stats.buffer_max];
+    option::Option* opts = new opts[stats.options_max];
+    option::Option* buffer = new opts[stats.buffer_max + 16];
     option::Parser parse(usage, argc, argv, opts, buffer);
     if (opts[opHELP]) {
         option::printUsage(std::cerr, usage);
@@ -657,6 +658,9 @@ int main(int   argc,
         exit(255);
     }
     verbosity = opts[opVERB].count();
+
+    delete[] opts;
+    delete[] buffer;
 
     if (verbosity) {
         printf("User: %s\n", user ? user : "--not specified--");
