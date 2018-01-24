@@ -576,8 +576,8 @@ int main(int   argc,
     // Process the command line
     argc -= (argc > 0);argv += (argc > 0); // skip program name argv[0] if present
     option::Stats  stats(usage, argc, argv);
-    option::Option* opts = new opts[stats.options_max];
-    option::Option* buffer = new opts[stats.buffer_max + 16];
+    option::Option* opts = new option::Option[stats.options_max];
+    option::Option* buffer = new option::Option[stats.buffer_max + 16];
     option::Parser parse(usage, argc, argv, opts, buffer);
     if (opts[opHELP]) {
         option::printUsage(std::cerr, usage);
