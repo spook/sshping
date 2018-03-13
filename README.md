@@ -44,14 +44,14 @@ Options:
 
 ```
 # bin/sshping -d cheyenne.example.com
----  ssh Login Time: 4,286,336,535 nsec
---- Minimum Latency:   134,679,785 nsec
----  Median Latency:   139,936,318 nsec  +/- 20,996,458 std dev
---- Average Latency:   145,943,038 nsec
---- Maximum Latency:   254,836,720 nsec
----      Echo count:         1,000 Bytes
----   Transfer Size:     8,000,000 Bytes
----   Transfer Rate:       250,622 Bytes/second
+ssh-Login-Time:   1,730,431,639 nsec
+Minimum-Latency:        836,491 nsec
+Median-Latency:       1,006,323 nsec  +/- 165,214 std dev
+Average-Latency:      1,026,238 nsec
+Maximum-Latency:      4,090,103 nsec
+Echo-Count:               1,000 Bytes
+Transfer-Size:        8,000,000 Bytes
+Upload-Rate:          5,044,247 Bytes/second
 ```
 
 ## Building
@@ -85,4 +85,6 @@ in /usr/share/man/man8 in gzip'd format:
     sudo gzip /usr/share/man/man8/sshping.8
     sudo chown root.root /usr/share/man/man8/sshping.8.gz
     sudo chmod 644 /usr/share/man/man8/sshping.8.gz
+
+That's it!
 
