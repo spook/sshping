@@ -56,8 +56,18 @@ Options:
 
 ## Building
 
-Install the libssh-dev (or libssh-devel) package, version 0.6 or later.
-From the main directory (where this README.md file is located), run 'make'.
+Install the libssh-dev (or libssh-devel) package, version 0.6 or later:
+
+    sudo apt-get instal libssh-dev
+      ...or
+    sudo yum install libssh-devel
+      ...or whatever works on your platform
+
+From the main directory (where this README.md file is located), run 'make':
+
+    cd sshping
+    make
+
 The resultant binary will be in the bin/ directory.  You may copy this to 
 your system binary location, for example:
 
