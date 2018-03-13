@@ -44,14 +44,15 @@ Options:
 
 ```
 # bin/sshping -d cheyenne.example.com
-ssh-Login-Time:   1,730,431,639 nsec
-Minimum-Latency:        836,491 nsec
-Median-Latency:       1,006,323 nsec  +/- 165,214 std dev
-Average-Latency:      1,026,238 nsec
-Maximum-Latency:      4,090,103 nsec
-Echo-Count:               1,000 Bytes
-Transfer-Size:        8,000,000 Bytes
-Upload-Rate:          5,044,247 Bytes/second
+ssh-Login-Time:    1,733,748,227 nsec
+Minimum-Latency:         847,107 nsec
+Median-Latency:          996,029 nsec
+Average-Latency:         992,186 nsec
+Average-Deviation:        67,079 nsec
+Maximum-Latency:       1,289,470 nsec
+Echo-Count:                1,000 Bytes
+Transfer-Size:         8,000,000 Bytes
+Upload-Rate:           5,102,315 Bytes/second
 ```
 
 ## Building

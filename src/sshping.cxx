@@ -403,7 +403,7 @@ ssh_channel login_channel(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
-    printf("ssh-Login-Time: %15s nsec\n", fmtnum(nsec_diff(t0, t1)).c_str());
+    printf("ssh-Login-Time: %16s nsec\n", fmtnum(nsec_diff(t0, t1)).c_str());
 
     return chn;
 }
@@ -481,11 +481,12 @@ int run_echo_test(ssh_channel & chn) {
         med_latency = (latencies[num_sent / 2 - 1] + latencies[(num_sent + 1) / 2 - 1]) / 2;
     }
     uint64_t stddev = standard_deviation(latencies, avg_latency);
-    printf("Minimum-Latency:  %13s nsec\n", fmtnum(min_latency).c_str());
-    printf("Median-Latency:   %13s nsec  +/- %s std dev\n", fmtnum(med_latency).c_str(), fmtnum(stddev).c_str());
-    printf("Average-Latency:  %13s nsec\n", fmtnum(avg_latency).c_str());
-    printf("Maximum-Latency:  %13s nsec\n", fmtnum(max_latency).c_str());
-    printf("Echo-Count:       %13s Bytes\n", fmtnum(num_sent).c_str());
+    printf("Minimum-Latency:   %13s nsec\n", fmtnum(min_latency).c_str());
+    printf("Median-Latency:    %13s nsec\n", fmtnum(med_latency).c_str());
+    printf("Average-Latency:   %13s nsec\n", fmtnum(avg_latency).c_str());
+    printf("Average-Deviation: %13s nsec\n", fmtnum(stddev).c_str());
+    printf("Maximum-Latency:   %13s nsec\n", fmtnum(max_latency).c_str());
+    printf("Echo-Count:        %13s Bytes\n", fmtnum(num_sent).c_str());
 
     // Terminate the echo responder
     // TODO
@@ -502,7 +503,7 @@ int run_speed_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Speed test started\n");
     }
-    printf("Transfer-Size:    %13s Bytes\n", fmtnum(size * MEGA).c_str());
+    printf("Transfer-Size:     %13s Bytes\n", fmtnum(size * MEGA).c_str());
 
     ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, tgt);
     if (scp == NULL) {
@@ -544,7 +545,7 @@ int run_speed_test(ssh_session ses) {
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(size * MEGA) / duration;
 
-    printf("Upload-Rate:      %13s Bytes/second\n", fmtnum(Bps).c_str());
+    printf("Upload-Rate:       %13s Bytes/second\n", fmtnum(Bps).c_str());
     if (verbosity) {
         printf("+++ Speed test completed\n");
     }
