@@ -89,3 +89,22 @@ in /usr/share/man/man8 in gzip'd format:
 
 That's it!
 
+### Building with CMake
+
+You can build this with CMake, and that includes creating .deb 
+or .rpm packages.  Here's how:
+
+First, install libssh as above.  It's a prerequisite.
+Then from the main directory (where this README.md file is located):
+
+    mkdir build
+    cd build
+    cmake ..
+    make
+    make package
+
+You will find the binary `sshping` as well as the .deb and/or .rpm
+file in the current (build) directory.  Install those as you
+would any other package.
+
+
