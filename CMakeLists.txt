@@ -26,8 +26,7 @@ endif(dpkg_path)
 
 set(CPACK_PACKAGE_NAME "sshping")
 set(CPACK_PACKAGE_CONTACT "spook@MisfitMountain.org")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "sshping is an SSH-based ping-like utility that measures interactive character echo latency
-and file transfer throughput.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "sshping is an SSH-based ping-like utility that measures interactive character echo latency and file transfer throughput.")
 
 include(CPack)
 
