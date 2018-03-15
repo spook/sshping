@@ -414,7 +414,7 @@ int run_echo_test(ssh_channel & chn) {
     // Start the echo server
     echo_cmd += "\n";
     int nbytes = ssh_channel_write(chn, echo_cmd.c_str(), echo_cmd.length());
-    if (nbytes != echo_cmd.length()) {
+    if (nbytes != (int)echo_cmd.length()) {
         return SSH_ERROR;
     }
     int rc = discard_output(chn, 1500);
