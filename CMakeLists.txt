@@ -13,7 +13,7 @@ install(TARGETS ${PROJECT_NAME} DESTINATION bin CONFIGURATIONS Release)
 # man Pages
 find_program(P2M NAMES pod2man pod2man.pl)
 if (P2M)
-    message(STATUS "pod2man found, Use the 'man' target to build")
+    message(STATUS "pod2man found, use the 'man' target to build")
 endif (P2M)
 set(DOC_DIR  ${CMAKE_SOURCE_DIR}/doc)
 set(P2M_OPTS -c "ssh-based ping test utility" -d 2018-03-13 -r v0.1.3)

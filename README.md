@@ -110,7 +110,7 @@ would any other package.
 
 Or you can directly install on the current system with:
 
-    make install
+    sudo make install
 
 Enjoy!
 
