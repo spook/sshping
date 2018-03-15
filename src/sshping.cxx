@@ -58,7 +58,7 @@ int             char_limit = 0;
 int             time_limit = 0;
 int             contim     = 10;
 int             size       = 8;
-char*           tgt        = (char*)"/dev/null";
+char*           remfile    = (char*)"/tmp/sshping-000000000.tmp";
 char*           bynd       = NULL;
 char*           port       = NULL;
 char*           addr       = NULL;
@@ -92,7 +92,7 @@ enum  { opNONE,
         opTIME,
         opTEST,
         opVERB,
-        opTGT };
+        opREM };
 const option::Descriptor usage[] = {
     {opNONE, 0, "",  "",             Arg::None, "Usage: sshping [options] [user@]addr[:port]" },
     {opNONE, 0, "",  "",             Arg::None, " " },
@@ -112,7 +112,8 @@ const option::Descriptor usage[] = {
     {opTIME, 0, "t", "time",         Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
     {opCTIM, 0, "T", "connect-time", Arg::Reqd, "  -T  --connect-time S Time limit for ssh connection; default 10 sec"},
     {opVERB, 0, "v", "verbose",      Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
-    {opTGT,  0, "z", "target",       Arg::Reqd, "  -z  --target PATH    Target location for upload test; default=/dev/null"},
+    {opREM,  0, "z", "remote",       Arg::Reqd, "  -z  --remote FILE    Remote file for up/download tests;"},
+    {opNONE, 0, "",  "",             Arg::None, "                           default=/tmp/sshping-PID.tmp" },
     {0,0,0,0,0,0}
 };
 /* *INDENT-ON* */
@@ -496,16 +497,84 @@ int run_echo_test(ssh_channel & chn) {
     return SSH_OK;
 }
 
+// Run an download speed test
+int run_download_test(ssh_session ses) {
+
+    // Inits
+    if (verbosity) {
+        printf("+++ Download speed test started, remote file is %s\n", remfile);
+    }
+    printf("Download-Size:     %13s Bytes\n", fmtnum(size * MEGA).c_str());
+
+    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
+    if (scp == NULL) {
+        fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
+        return SSH_ERROR;
+    }
+
+    int rc = ssh_scp_init(scp);
+    if (rc != SSH_OK) {
+        fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
+        ssh_scp_free(scp);
+        return rc;
+    }
+
+    struct timespec t2;
+    clock_gettime(CLOCK_MONOTONIC, &t2);
+
+    rc = ssh_scp_pull_request(scp);
+    if (rc != SSH_SCP_REQUEST_NEWFILE) {
+        fprintf(stderr, "*** Cannot request download file - got %d: %s\n", rc, ssh_get_error(ses));
+        ssh_scp_free(scp);
+        return rc;
+    }
+
+    int avail = ssh_scp_request_get_size(scp);
+    if (verbosity) {
+        printf("+++ Available size of download: %d Bytes\n", avail);
+    }
+/* WORKING HERE
+    char buf[MEGA];
+    for (int i=0; i < size; i++) {
+        rc = ssh_scp_pull_file(scp, src, MEGA, S_IRUSR);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
+            return rc;
+        }
+
+        rc = ssh_scp_read(scp, buf, MEGA);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "*** Can't read from remote file: %s\n", ssh_get_error(ses));
+            return rc;
+        }
+    }
+*/
+    ssh_scp_close(scp);
+    ssh_scp_free(scp);
+
+    struct timespec t3;
+    clock_gettime(CLOCK_MONOTONIC, &t3);
+    double duration = double(nsec_diff(t3, t2)) / GIGAF;
+    if (duration == 0.0) duration = 0.000001;
+    uint64_t Bps = double(size * MEGA) / duration;
+
+    printf("Download-Rate:     %13s Bytes/second\n", fmtnum(Bps).c_str());
+    if (verbosity) {
+        printf("+++ Download speed test completed\n");
+    }
+    return SSH_OK;
+}
+
 // Run an upload speed test
 int run_upload_test(ssh_session ses) {
 
     // Inits
     if (verbosity) {
-        printf("+++ Upload speed test started, remote target is %s\n", tgt);
+        printf("+++ Upload speed test started, remote file is %s\n", remfile);
     }
     printf("Upload-Size:       %13s Bytes\n", fmtnum(size * MEGA).c_str());
 
-    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, tgt);
+    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, remfile);
     if (scp == NULL) {
         fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
         return SSH_ERROR;
@@ -524,7 +593,7 @@ int run_upload_test(ssh_session ses) {
     char buf[MEGA];
     memset(buf, 's', MEGA);
     for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, tgt, MEGA, S_IRUSR);
+        rc = ssh_scp_push_file(scp, remfile, MEGA, S_IRWXU);
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
             return rc;
@@ -630,8 +699,8 @@ int main(int   argc,
     if (opts[opBIND]) {
         bynd = (char*)opts[opBIND].arg;
     }
-    if (opts[opTGT]) {
-        tgt  = (char*)opts[opTGT].arg;
+    if (opts[opREM]) {
+        remfile = (char*)opts[opREM].arg;
     }
     if (opts[opSIZE]) {
         size = atoi(opts[opSIZE].arg);
@@ -687,6 +756,7 @@ int main(int   argc,
     }
     if (do_speed) {
         run_upload_test(ses);
+        run_download_test(ses);
     }
 
     // Cleanup
