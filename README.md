@@ -33,11 +33,11 @@ Options:
   -i  --identity FILE  Identity file, ie ssh private keyfile
   -p  --password PWD   Use password PWD (can be seen, use with care)
   -r  --runtests e|s   Run tests e=echo s=speed; default es=both
-  -s  --size MB        For speed test, send MB megabytes; default=8 MB
+  -s  --size MB        For speed test, send/recv MB megabytes; default=8 MB
   -t  --time SECS      Time limit for echo test
   -T  --connect-time S Time limit for ssh connection; default 10 sec
   -v  --verbose        Show more output, use twice for lots: -vv
-  -z  --target PATH    Target location for xfer test; default=/dev/null
+  -z  --target PATH    Target location for upload test; default=/dev/null
 ```
 
 ### Example
@@ -51,7 +51,7 @@ Average-Latency:         992,186 nsec
 Average-Deviation:        67,079 nsec
 Maximum-Latency:       1,289,470 nsec
 Echo-Count:                1,000 Bytes
-Transfer-Size:         8,000,000 Bytes
+Upload-Size:           8,000,000 Bytes
 Upload-Rate:           5,102,315 Bytes/second
 ```
 

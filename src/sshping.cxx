@@ -108,11 +108,11 @@ const option::Descriptor usage[] = {
     {opID,   0, "i", "identity",     Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opPWD,  0, "p", "password",     Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
     {opTEST, 0, "r", "runtests",     Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
-    {opSIZE, 0, "s", "size",         Arg::Reqd, "  -s  --size MB        For speed test, send MB megabytes; default=8 MB"},
+    {opSIZE, 0, "s", "size",         Arg::Reqd, "  -s  --size MB        For speed tests, send/recv MB megabytes; default=8 MB"},
     {opTIME, 0, "t", "time",         Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
     {opCTIM, 0, "T", "connect-time", Arg::Reqd, "  -T  --connect-time S Time limit for ssh connection; default 10 sec"},
     {opVERB, 0, "v", "verbose",      Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
-    {opTGT,  0, "z", "target",       Arg::Reqd, "  -z  --target PATH    Target location for xfer test; default=/dev/null"},
+    {opTGT,  0, "z", "target",       Arg::Reqd, "  -z  --target PATH    Target location for upload test; default=/dev/null"},
     {0,0,0,0,0,0}
 };
 /* *INDENT-ON* */
@@ -496,14 +496,14 @@ int run_echo_test(ssh_channel & chn) {
     return SSH_OK;
 }
 
-// Run a speed test
-int run_speed_test(ssh_session ses) {
+// Run an upload speed test
+int run_upload_test(ssh_session ses) {
 
     // Inits
     if (verbosity) {
-        printf("+++ Speed test started\n");
+        printf("+++ Upload speed test started, remote target is %s\n", tgt);
     }
-    printf("Transfer-Size:     %13s Bytes\n", fmtnum(size * MEGA).c_str());
+    printf("Upload-Size:       %13s Bytes\n", fmtnum(size * MEGA).c_str());
 
     ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, tgt);
     if (scp == NULL) {
@@ -524,7 +524,7 @@ int run_speed_test(ssh_session ses) {
     char buf[MEGA];
     memset(buf, 's', MEGA);
     for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, "speedtest.tmp", MEGA, S_IRUSR);
+        rc = ssh_scp_push_file(scp, tgt, MEGA, S_IRUSR);
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
             return rc;
@@ -547,7 +547,7 @@ int run_speed_test(ssh_session ses) {
 
     printf("Upload-Rate:       %13s Bytes/second\n", fmtnum(Bps).c_str());
     if (verbosity) {
-        printf("+++ Speed test completed\n");
+        printf("+++ Upload speed test completed\n");
     }
     return SSH_OK;
 }
@@ -686,7 +686,7 @@ int main(int   argc,
         run_echo_test(chn);
     }
     if (do_speed) {
-        run_speed_test(ses);
+        run_upload_test(ses);
     }
 
     // Cleanup

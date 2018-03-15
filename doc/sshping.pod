@@ -9,7 +9,7 @@ sshping [options] [user@]addr[:port]
 =head1 DESCRIPTION
 
 B<sshping> is an SSH-based ping-like utility that measures interactive character echo latency
-and file transfer throughput.  It's pronounced "shipping".
+and file transfer upload/download throughput.  It's pronounced "shipping".
 
 =head1 PARAMETERS
 
@@ -71,7 +71,7 @@ Short and long forms of options take the same arguments as shown.
     Show more output, use twice for lots: -vv
 
 -z, --target PATH
-    Target location for scp transfer speed test; default=/dev/null
+    Target location for scp upload speed test; default=/dev/null
     A 1MB dummy file is repeatedly copied to this location to test
     the transfer speed.
 
@@ -129,20 +129,24 @@ Echo-Count
 
 =head2 Transfer Speed Test
 
-The file transfer I<speed test> measures the throughput rate,
-in bytes per second (Bps) of the scp subsystem.  This is the
-subsystem typically used when copying files over ssh.
+The file transfer I<speed test> measures the upload and
+download throughput rate, in bytes per second (Bps),
+using the scp subsystem.  This is the subsystem typically used
+when copying files over ssh.
 
-The test creates a random 1MB file then copies it to
+For the upload tests, a random 1MB file is copied to
 the target system ("uploads" it), measuring the time required
 for the transfer.  The file is repeatedly copied to get transfer 
-sizes greater than 1MB.
+sizes greater than 1MB.  By default the target file is /dev/null
+but this can be changed with --target if you really want to hit
+the disk.
 
-Transfer-Size
-    Number of bytes transferred during the test.
+
+Upload-Size
+    Number of bytes uploaded during the test.
 
 Upload-Rate
-    Throughput speed for the file transfer, in Bytes/second.
+    Throughput speed for the upload transfer, in Bytes/second.
 
 
 =head1 EXAMPLES
@@ -155,7 +159,7 @@ Upload-Rate
     Average-Deviation:        67,079 nsec
     Maximum-Latency:       1,289,470 nsec
     Echo-Count:                1,000 Bytes
-    Transfer-Size:         8,000,000 Bytes
+    Upload-Size:           8,000,000 Bytes
     Upload-Rate:           5,102,315 Bytes/second
 
 

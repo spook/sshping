@@ -1,3 +1,5 @@
+# See https://github.com/spook/sshping
+
 default: sshping
 
 sshping: bin/sshping
