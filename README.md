@@ -37,7 +37,8 @@ Options:
   -t  --time SECS      Time limit for echo test
   -T  --connect-time S Time limit for ssh connection; default 10 sec
   -v  --verbose        Show more output, use twice for lots: -vv
-  -z  --target PATH    Target location for upload test; default=/dev/null
+  -z  --remote FILE    Remote file for up/download tests;
+                           default=/tmp/sshping-PID.tmp
 ```
 
 ### Example
@@ -52,7 +53,9 @@ Average-Deviation:        67,079 nsec
 Maximum-Latency:       1,289,470 nsec
 Echo-Count:                1,000 Bytes
 Upload-Size:           8,000,000 Bytes
-Upload-Rate:           5,102,315 Bytes/second
+Upload-Rate:           4,732,718 Bytes/second
+Download-Size:         8,000,000 Bytes
+Download-Rate:         3,781,725 Bytes/second
 ```
 
 ## Building
