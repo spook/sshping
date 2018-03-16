@@ -506,51 +506,63 @@ int run_download_test(ssh_session ses) {
     }
     printf("Download-Size:     %13s Bytes\n", fmtnum(size * MEGA).c_str());
 
-    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
-    if (scp == NULL) {
-        fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
-        return SSH_ERROR;
-    }
-
-    int rc = ssh_scp_init(scp);
-    if (rc != SSH_OK) {
-        fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
-        ssh_scp_free(scp);
-        return rc;
-    }
+    char   buf[MEGA];
+    size_t avail = 0;
+    size_t remaining = size * MEGA;
 
     struct timespec t2;
     clock_gettime(CLOCK_MONOTONIC, &t2);
+    while (remaining) {
+        ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
+        if (scp == NULL) {
+            fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
+            return SSH_ERROR;
+        }
 
-    rc = ssh_scp_pull_request(scp);
-    if (rc != SSH_SCP_REQUEST_NEWFILE) {
-        fprintf(stderr, "*** Cannot request download file - got %d: %s\n", rc, ssh_get_error(ses));
+        int rc = ssh_scp_init(scp);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
+            ssh_scp_free(scp);
+            return rc;
+        }
+
+        rc = ssh_scp_pull_request(scp);
+        if (rc != SSH_SCP_REQUEST_NEWFILE) {
+            fprintf(stderr, "*** Cannot request download file - got %d: %s\n", rc, ssh_get_error(ses));
+            ssh_scp_close(scp);
+            ssh_scp_free(scp);
+            return rc;
+        }
+
+        if (!avail) {
+            avail = ssh_scp_request_get_size(scp);
+            if (verbosity) {
+                printf("+++ Available size of download: %lu Bytes\n", avail);
+            }
+            if (!avail) {
+                fprintf(stderr, "*** Remote file size must be non-zero\n");
+                ssh_scp_close(scp);
+                ssh_scp_free(scp);
+                return rc;
+            }
+        }
+
+        size_t amount = avail;
+        if (amount > remaining)   amount = remaining;
+        if (amount > sizeof(buf)) amount = sizeof(buf);
+        ssh_scp_accept_request(scp);
+        rc = ssh_scp_read(scp, buf, amount);
+        if (rc == SSH_ERROR) {
+            fprintf(stderr, "*** Failed read on file download: %s\n", ssh_get_error(ses));
+            ssh_scp_close(scp);
+            ssh_scp_free(scp);
+            return rc;
+        }
+
+        remaining -= amount;
+        ssh_scp_close(scp);
         ssh_scp_free(scp);
-        return rc;
     }
-
-    int avail = ssh_scp_request_get_size(scp);
-    if (verbosity) {
-        printf("+++ Available size of download: %d Bytes\n", avail);
-    }
-/* WORKING HERE
-    char buf[MEGA];
-    for (int i=0; i < size; i++) {
-        rc = ssh_scp_pull_file(scp, src, MEGA, S_IRUSR);
-        if (rc != SSH_OK) {
-            fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
-            return rc;
-        }
-
-        rc = ssh_scp_read(scp, buf, MEGA);
-        if (rc != SSH_OK) {
-            fprintf(stderr, "*** Can't read from remote file: %s\n", ssh_get_error(ses));
-            return rc;
-        }
-    }
-*/
-    ssh_scp_close(scp);
-    ssh_scp_free(scp);
 
     struct timespec t3;
     clock_gettime(CLOCK_MONOTONIC, &t3);
