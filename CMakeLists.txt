@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "-I ../ext/ -Wall")
 add_executable(${PROJECT_NAME} src/sshping.cxx)
 target_link_libraries(${PROJECT_NAME} ssh)
-install(TARGETS ${PROJECT_NAME} DESTINATION bin CONFIGURATIONS Release)
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
 # man Pages
 find_program(P2M NAMES pod2man pod2man.pl)
