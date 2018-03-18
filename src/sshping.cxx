@@ -31,7 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 #include <vector>
 
 #if (LIBSSH_VERSION_MAJOR == 0) && (LIBSSH_VERSION_MINOR < 6)
@@ -58,7 +60,8 @@ int             char_limit = 0;
 int             time_limit = 0;
 int             contim     = 10;
 int             size       = 8;
-char*           remfile    = (char*)"/tmp/sshping-000000000.tmp";
+char            rembuf[32];
+char*           remfile    = NULL;
 char*           bynd       = NULL;
 char*           port       = NULL;
 char*           addr       = NULL;
@@ -720,6 +723,10 @@ int main(int   argc,
     }
     if (opts[opREM]) {
         remfile = (char*)opts[opREM].arg;
+    }
+    else {
+        snprintf(rembuf, sizeof(rembuf), "/tmp/sshping-%9.9d.tmp", getpid());
+        remfile = (char*)rembuf;   // point to buffer we just filled in
     }
     if (opts[opSIZE]) {
         size = atoi(opts[opSIZE].arg);
