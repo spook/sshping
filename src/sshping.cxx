@@ -507,7 +507,66 @@ int run_echo_test(ssh_channel & chn) {
     return SSH_OK;
 }
 
-// Run an download speed test
+// Run an upload speed test
+int run_upload_test(ssh_session ses) {
+
+    // Inits
+    if (verbosity) {
+        printf("+++ Upload speed test started, remote file is %s\n", remfile);
+    }
+    printf("Upload-Size:       %13s Bytes\n", fmtnum(size * MEGA).c_str());
+
+    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, remfile);
+    if (scp == NULL) {
+        fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
+        return SSH_ERROR;
+    }
+
+    int rc = ssh_scp_init(scp);
+    if (rc != SSH_OK) {
+        fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
+        ssh_scp_free(scp);
+        return rc;
+    }
+
+    struct timespec t2;
+    clock_gettime(CLOCK_MONOTONIC, &t2);
+
+    char buf[MEGA];
+    srand(getpid());
+    for (size_t i=0; i < sizeof(buf); i++) {
+        buf[i] = (rand() && 0x3f) + 32;
+    }
+    for (int i=0; i < size; i++) {
+        rc = ssh_scp_push_file(scp, remfile, MEGA, S_IRWXU);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
+            return rc;
+        }
+
+        rc = ssh_scp_write(scp, buf, MEGA);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
+            return rc;
+        }
+    }
+    ssh_scp_close(scp);
+    ssh_scp_free(scp);
+
+    struct timespec t3;
+    clock_gettime(CLOCK_MONOTONIC, &t3);
+    double duration = double(nsec_diff(t3, t2)) / GIGAF;
+    if (duration == 0.0) duration = 0.000001;
+    uint64_t Bps = double(size * MEGA) / duration;
+
+    printf("Upload-Rate:       %13s Bytes/second\n", fmtnum(Bps).c_str());
+    if (verbosity) {
+        printf("+++ Upload speed test completed\n");
+    }
+    return SSH_OK;
+}
+
+// Run a download speed test
 int run_download_test(ssh_session ses) {
 
     // Inits
@@ -583,62 +642,6 @@ int run_download_test(ssh_session ses) {
     printf("Download-Rate:     %13s Bytes/second\n", fmtnum(Bps).c_str());
     if (verbosity) {
         printf("+++ Download speed test completed\n");
-    }
-    return SSH_OK;
-}
-
-// Run an upload speed test
-int run_upload_test(ssh_session ses) {
-
-    // Inits
-    if (verbosity) {
-        printf("+++ Upload speed test started, remote file is %s\n", remfile);
-    }
-    printf("Upload-Size:       %13s Bytes\n", fmtnum(size * MEGA).c_str());
-
-    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, remfile);
-    if (scp == NULL) {
-        fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
-        return SSH_ERROR;
-    }
-
-    int rc = ssh_scp_init(scp);
-    if (rc != SSH_OK) {
-        fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
-        ssh_scp_free(scp);
-        return rc;
-    }
-
-    struct timespec t2;
-    clock_gettime(CLOCK_MONOTONIC, &t2);
-
-    char buf[MEGA];
-    memset(buf, 's', MEGA);
-    for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, remfile, MEGA, S_IRWXU);
-        if (rc != SSH_OK) {
-            fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
-            return rc;
-        }
-
-        rc = ssh_scp_write(scp, buf, MEGA);
-        if (rc != SSH_OK) {
-            fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
-            return rc;
-        }
-    }
-    ssh_scp_close(scp);
-    ssh_scp_free(scp);
-
-    struct timespec t3;
-    clock_gettime(CLOCK_MONOTONIC, &t3);
-    double duration = double(nsec_diff(t3, t2)) / GIGAF;
-    if (duration == 0.0) duration = 0.000001;
-    uint64_t Bps = double(size * MEGA) / duration;
-
-    printf("Upload-Rate:       %13s Bytes/second\n", fmtnum(Bps).c_str());
-    if (verbosity) {
-        printf("+++ Upload speed test completed\n");
     }
     return SSH_OK;
 }
