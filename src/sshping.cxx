@@ -432,6 +432,7 @@ int run_echo_test(ssh_channel & chn) {
     char                  rbuf[2];
     std::vector<uint64_t> latencies;
     time_t                endt = time(NULL) + time_limit;
+    time_t                tv   = 0;
     for (int n = 0; (!char_limit || (n < char_limit))
                  && (!time_limit || (time(NULL) <= endt)); n++) {
 
@@ -460,6 +461,12 @@ int run_echo_test(ssh_channel & chn) {
         uint64_t latency = nsec_diff(tw, tr);
         latencies.push_back(latency);
         tot_latency += latency;
+
+        if (verbosity && ((time(NULL) - tv) > 3)) {
+            tv = time(NULL);
+            printf("  + %d/%d\r", n, char_limit);
+            fflush(stdout);
+        }
     }
 
     int num_sent = latencies.size();
