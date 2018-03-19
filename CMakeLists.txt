@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 2.8)
 #find_package(libssh)
 
 # Build the sshping binary
-set(CMAKE_CXX_FLAGS "-I ../ext/ -Wall")
+set(CMAKE_CXX_FLAGS "-I ${CMAKE_CURRENT_SOURCE_DIR}/ext/ -Wall")
 add_executable(${PROJECT_NAME} src/sshping.cxx)
 target_link_libraries(${PROJECT_NAME} ssh)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
