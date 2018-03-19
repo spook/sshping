@@ -16,7 +16,7 @@ if (P2M)
     message(STATUS "pod2man found, use the 'man' target to build")
 endif (P2M)
 set(DOC_DIR  ${CMAKE_SOURCE_DIR}/doc)
-set(P2M_OPTS -c "ssh-based ping test utility" -d 2018-03-13 -r v0.1.4)
+set(P2M_OPTS --section=8 -c "ssh-based ping test utility" -d 2018-03-13 -r v0.1.4)
 set(MAN_SRC  ${DOC_DIR}/sshping.pod)
 set(MAN_TGT  ${DOC_DIR}/sshping.8)
 add_custom_command(
