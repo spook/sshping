@@ -607,6 +607,9 @@ int run_download_test(ssh_session ses) {
             avail = ssh_scp_request_get_size(scp);
             if (verbosity) {
                 printf("+++ Available size of download: %lu Bytes\n", avail);
+                if (remaining > avail) {
+                    printf("  + (Will repeat download as needed)\n");
+                }
             }
             if (!avail) {
                 fprintf(stderr, "*** Remote file size must be non-zero\n");
