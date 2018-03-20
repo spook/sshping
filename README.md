@@ -62,7 +62,7 @@ Download-Rate:         3,781,725 Bytes/second
 
 Install the libssh-dev (or libssh-devel) package, version 0.6 or later:
 
-    sudo apt-get instal libssh-dev
+    sudo apt-get install libssh-dev
       ...or
     sudo yum install libssh-devel
       ...or whatever works on your platform
