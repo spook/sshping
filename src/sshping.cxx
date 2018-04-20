@@ -535,7 +535,7 @@ int run_upload_test(ssh_session ses) {
     char buf[MEGA];
     srand(getpid());
     for (size_t i=0; i < sizeof(buf); i++) {
-        buf[i] = (rand() && 0x3f) + 32;
+        buf[i] = (rand() & 0x3f) + 32;
     }
     for (int i=0; i < size; i++) {
         rc = ssh_scp_push_file(scp, remfile, MEGA, S_IRWXU);
