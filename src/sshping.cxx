@@ -127,6 +127,7 @@ void die(const char* msg) {
     exit(255);
 }
 
+// Format integers with delimiters
 std::string fmtnum(uint64_t n) {
     char buf[21];
     snprintf(buf, sizeof(buf), "%" PRIu64, n);
@@ -134,7 +135,7 @@ std::string fmtnum(uint64_t n) {
     if (!delimited) return fstr;
     ssize_t i = fstr.length() - 3;
     while (i > 0) {
-        fstr.insert(i, ",");
+        fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC)
         i -= 3;
     }
     return fstr;
@@ -186,6 +187,7 @@ int authenticate_pubkey(ssh_session & ses) {
     }
     return rc;
 }
+
 // Try password authentication
 int authenticate_password(ssh_session & ses) {
     if (!pass) {
@@ -649,8 +651,8 @@ int run_download_test(ssh_session ses) {
     return SSH_OK;
 }
 
+// Terminate the channel
 void logout_channel(ssh_channel & chn) {
-    // All done, cleanup
     ssh_channel_close(chn);
     ssh_channel_send_eof(chn);
     ssh_channel_free(chn);
@@ -659,6 +661,7 @@ void logout_channel(ssh_channel & chn) {
     }
 }
 
+// Finish the session
 void end_session(ssh_session & ses) {
     ssh_disconnect(ses);
     ssh_free(ses);
@@ -668,6 +671,7 @@ void end_session(ssh_session & ses) {
 }
 
 
+// The Main
 int main(int   argc,
          char* argv[]) {
 
@@ -698,6 +702,7 @@ int main(int   argc,
         return 255;
     }
 
+    // Parse values
     port = (char*)parse.nonOption(0);
     addr = strsep(&port, ":");
     user = strsep(&addr, "@");
@@ -714,6 +719,7 @@ int main(int   argc,
         exit(255);
     }
 
+    // Setup options
     delimited = opts[opDLM];
     if (opts[opECMD]) {
         echo_cmd = opts[opECMD].arg;
@@ -761,9 +767,11 @@ int main(int   argc,
     }
     verbosity = opts[opVERB].count();
 
+    // Keep valgrind happy ;-)
     delete[] opts;
     delete[] buffer;
 
+    // Show what's up
     if (verbosity) {
         printf("User: %s\n", user ? user : "--not specified--");
         printf("Host: %s\n", addr);
@@ -795,3 +803,4 @@ int main(int   argc,
     logout_channel(chn);
     end_session(ses);
 }
+
