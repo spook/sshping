@@ -54,8 +54,8 @@
   #define PRIu64 "llu"
 #endif
 
-struct timespec t0;
-struct timespec t1;
+uint64_t		t0;
+uint64_t		t1;
 bool            delimited  = false;
 int             zero       = 0;
 int             verbosity  = 0;
@@ -193,6 +193,27 @@ char* strsep(char** stringp, const char* delim) {
 	return start;
 }
 
+// Replacement for the clock_gettime UNIX method
+uint64_t GetTime() {
+	LARGE_INTEGER li;
+	long temp = 0;
+	if (PCFreq = 0) {
+		QueryPerformanceFrequency(&li);
+		PCFreq = int(li.QuadPart) / GIGA;
+	}
+	QueryPerformanceCounter(&li);
+	return uint64_t(li.QuadPart) / PCFreq;
+}
+
+#else
+
+uint64_t GetTime() {
+	struct timespec tz;
+	clock_gettime(CLOCK_MONOTONIC, &tz);
+	uint64_t output = (tz.tv_sec * GIGA + tz.tv_nsec);
+	return output;
+}
+
 #endif
 
 // Format integers with delimiters
@@ -210,11 +231,8 @@ std::string fmtnum(uint64_t n) {
 }
 
 // Nanosecond difference between two timestamps
-uint64_t nsec_diff(const struct timespec & t0,
-                   const struct timespec & t1) {
-    uint64_t u0 = t0.tv_sec * GIGA + t0.tv_nsec;
-    uint64_t u1 = t1.tv_sec * GIGA + t1.tv_nsec;
-    return u1 > u0 ? u1 - u0 : u0 - u1;
+uint64_t nsec_diff(uint64_t u0, uint64_t u1) {
+	return u1 > u0 ? u1 - u0 : u0 - u1;
 }
 
 // Standard deviation
@@ -414,7 +432,7 @@ ssh_session begin_session() {
     }
 
     // Try to connect
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+	t0 = GetTime();
     int rc = ssh_connect(ses);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Error connecting: %s\n", ssh_get_error(ses));
@@ -473,7 +491,7 @@ ssh_channel login_channel(ssh_session & ses) {
     }
 
     // Marker: Timing point for the initial handshake
-    clock_gettime(CLOCK_MONOTONIC, &t1);
+    t1 = GetTime();
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
@@ -509,8 +527,7 @@ int run_echo_test(ssh_channel & chn) {
     for (int n = 0; (!char_limit || (n < char_limit))
                  && (!time_limit || (time(NULL) <= endt)); n++) {
 
-        struct timespec tw;
-        clock_gettime(CLOCK_MONOTONIC, &tw);
+		uint64_t tw = GetTime();
 
         int i = n % (sizeof(wbuf) - 2);
         nbytes = ssh_channel_write(chn, &wbuf[i], 1);
@@ -528,8 +545,7 @@ int run_echo_test(ssh_channel & chn) {
             return SSH_ERROR;
         }
 
-        struct timespec tr;
-        clock_gettime(CLOCK_MONOTONIC, &tr);
+		uint64_t tr = GetTime();
 
         uint64_t latency = nsec_diff(tw, tr);
         latencies.push_back(latency);
@@ -599,8 +615,7 @@ int run_upload_test(ssh_session ses) {
         return rc;
     }
 
-    struct timespec t2;
-    clock_gettime(CLOCK_MONOTONIC, &t2);
+	uint64_t t2 = GetTime();
 
     char buf[MEGA];
     srand(getpid());
@@ -623,8 +638,7 @@ int run_upload_test(ssh_session ses) {
     ssh_scp_close(scp);
     ssh_scp_free(scp);
 
-    struct timespec t3;
-    clock_gettime(CLOCK_MONOTONIC, &t3);
+	uint64_t t3 = GetTime();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(size * MEGA) / duration;
@@ -649,8 +663,7 @@ int run_download_test(ssh_session ses) {
     size_t avail = 0;
     size_t remaining = size * MEGA;
 
-    struct timespec t2;
-    clock_gettime(CLOCK_MONOTONIC, &t2);
+	uint64_t t2 = GetTime();
     while (remaining) {
         ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
         if (scp == NULL) {
@@ -706,8 +719,7 @@ int run_download_test(ssh_session ses) {
         ssh_scp_free(scp);
     }
 
-    struct timespec t3;
-    clock_gettime(CLOCK_MONOTONIC, &t3);
+	uint64_t t3 = GetTime();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(size * MEGA) / duration;
