@@ -222,7 +222,7 @@ std::string fmtnum(uint64_t n) {
     snprintf(buf, sizeof(buf), "%" PRIu64, n);
     std::string fstr = buf;
     if (!delimited) return fstr;
-    ssize_t i = fstr.length() - 3;
+    size_t i = fstr.length() - 3; 
     while (i > 0) {
         fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC)
         i -= 3;
@@ -623,7 +623,7 @@ int run_upload_test(ssh_session ses) {
         buf[i] = (rand() & 0x3f) + 32;
     }
     for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, remfile, MEGA, S_IRWXU);
+        rc = ssh_scp_push_file(scp, remfile, MEGA, 0700); // not sure if 0700 will work as a replacement for S_IRWXU    
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
             return rc;
