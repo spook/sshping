@@ -33,7 +33,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-#include <unistd.h>
 #include <vector>
 
 #if (LIBSSH_VERSION_MAJOR == 0) && (LIBSSH_VERSION_MINOR < 6)
@@ -41,6 +40,10 @@
 #endif
 
 #include "optionparser.h"
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif // WIN32
 
 #define DEFAULT_COUNT 1000
 #define MEGA         1000000
@@ -126,6 +129,50 @@ void die(const char* msg) {
     fprintf(stderr, "*** %s\n", msg);
     exit(255);
 }
+
+#if _WIN32
+
+#include <conio.h>
+
+# ifndef PASS_MAX
+#  define PASS_MAX 512
+# endif
+
+int PCFreq = 0;
+
+// Replacement for the getpass UNIX method
+char *getpass(const char *prompt) {
+	char getpassbuf[PASS_MAX + 1];
+	size_t i = 0;
+	int c;
+	if (prompt) {
+		fputs(prompt, stderr);
+		fflush(stderr);
+	}
+	for (;;) {
+		c = _getch();
+		if (c != 0) {
+			if (c == '\r') {
+				getpassbuf[i] = '\0';
+				break;
+			}
+			else if (i < PASS_MAX) {
+				getpassbuf[i++] = c;
+			}
+			if (i >= PASS_MAX) {
+				getpassbuf[i] = '\0';
+				break;
+			}
+		}
+	}
+	if (prompt) {
+		fputs("\r\n", stderr);
+		fflush(stderr);
+	}
+	return _strdup(getpassbuf);
+}
+
+#endif
 
 // Format integers with delimiters
 std::string fmtnum(uint64_t n) {
