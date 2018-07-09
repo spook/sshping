@@ -132,6 +132,7 @@ void die(const char* msg) {
 
 #if _WIN32
 
+#include <windows.h>
 #include <conio.h>
 
 # ifndef PASS_MAX
@@ -170,6 +171,11 @@ char *getpass(const char *prompt) {
 		fflush(stderr);
 	}
 	return _strdup(getpassbuf);
+}
+
+// Replacement for the getpid UNIX method
+DWORD getpid() {
+	return GetCurrentProcessId();
 }
 
 #endif
