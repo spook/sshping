@@ -134,6 +134,7 @@ void die(const char* msg) {
 
 #include <windows.h>
 #include <conio.h>
+const int permissions = 448;
 
 # ifndef PASS_MAX
 #  define PASS_MAX 512
@@ -206,6 +207,8 @@ uint64_t GetTime() {
 }
 
 #else
+
+const int permissions = S_IRWXU;
 
 uint64_t GetTime() {
 	struct timespec tz;
@@ -623,7 +626,7 @@ int run_upload_test(ssh_session ses) {
         buf[i] = (rand() & 0x3f) + 32;
     }
     for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, remfile, MEGA, 0700); // not sure if 0700 will work as a replacement for S_IRWXU    
+        rc = ssh_scp_push_file(scp, remfile, MEGA, permissions); 
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
             return rc;
