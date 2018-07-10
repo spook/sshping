@@ -22,6 +22,13 @@
    SOFTWARE.
  */
 
+#ifdef _WIN32
+#define LIBSSH_STATIC 1
+#pragma comment(lib, "Ws2_32.lib")
+#else
+#include <unistd.h>
+#endif
+
 #include <algorithm>
 #include <inttypes.h>
 #include <iostream>
@@ -39,11 +46,12 @@
   #error "*** libssh must be version 0.6 or later"
 #endif
 
-#include "optionparser.h"
+#if defined(_MSC_VER)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
 
-#ifndef _WIN32
-#include <unistd.h>
-#endif // WIN32
+#include "optionparser.h"
 
 #define DEFAULT_COUNT 1000
 #define MEGA         1000000
@@ -134,13 +142,11 @@ void die(const char* msg) {
 
 #include <windows.h>
 #include <conio.h>
-const int permissions = 448;
-
-# ifndef PASS_MAX
+#ifndef PASS_MAX
 #  define PASS_MAX 512
-# endif
+#endif
 
-int PCFreq = 0;
+double PCFreq = 0;
 
 // Replacement for the getpass UNIX method
 char *getpass(const char *prompt) {
@@ -158,7 +164,11 @@ char *getpass(const char *prompt) {
 				getpassbuf[i] = '\0';
 				break;
 			}
-			else if (i < PASS_MAX) {
+			else if (c == '\b' && i != 0) {
+				getpassbuf[i] = NULL;
+				i--;
+			}
+			else if (i < PASS_MAX && c != '\b') {
 				getpassbuf[i++] = c;
 			}
 			if (i >= PASS_MAX) {
@@ -198,17 +208,15 @@ char* strsep(char** stringp, const char* delim) {
 uint64_t GetTime() {
 	LARGE_INTEGER li;
 	long temp = 0;
-	if (PCFreq = 0) {
+	if (PCFreq == 0) {
 		QueryPerformanceFrequency(&li);
-		PCFreq = int(li.QuadPart) / GIGA;
+		PCFreq = (double)li.QuadPart / GIGA;
 	}
 	QueryPerformanceCounter(&li);
-	return uint64_t(li.QuadPart) / PCFreq;
+	return double(li.QuadPart) / PCFreq;
 }
 
 #else
-
-const int permissions = S_IRWXU;
 
 uint64_t GetTime() {
 	struct timespec tz;
@@ -216,7 +224,6 @@ uint64_t GetTime() {
 	uint64_t output = (tz.tv_sec * GIGA + tz.tv_nsec);
 	return output;
 }
-
 #endif
 
 // Format integers with delimiters
@@ -225,7 +232,7 @@ std::string fmtnum(uint64_t n) {
     snprintf(buf, sizeof(buf), "%" PRIu64, n);
     std::string fstr = buf;
     if (!delimited) return fstr;
-    size_t i = fstr.length() - 3; 
+    ssize_t i = fstr.length() - 3; 
     while (i > 0) {
         fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC)
         i -= 3;
@@ -626,7 +633,13 @@ int run_upload_test(ssh_session ses) {
         buf[i] = (rand() & 0x3f) + 32;
     }
     for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, remfile, MEGA, permissions); 
+        rc = ssh_scp_push_file(scp, remfile, MEGA, 
+#ifdef _WIN32 
+			448
+#else
+			S_IRWXU
+#endif
+		);
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
             return rc;
@@ -757,7 +770,6 @@ void end_session(ssh_session & ses) {
 // The Main
 int main(int   argc,
          char* argv[]) {
-
     // Process the command line
     argc -= (argc > 0);argv += (argc > 0); // skip program name argv[0] if present
     option::Stats  stats(usage, argc, argv);

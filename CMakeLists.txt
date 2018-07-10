@@ -5,27 +5,34 @@ cmake_minimum_required(VERSION 2.8)
 #find_package(libssh)
 
 # Build the sshping binary
-set(CMAKE_CXX_FLAGS "-I ${CMAKE_CURRENT_SOURCE_DIR}/ext/ -Wall")
+include_directories(ext)
 add_executable(${PROJECT_NAME} src/sshping.cxx)
-target_link_libraries(${PROJECT_NAME} ssh)
+if (UNIX)
+	target_link_libraries(${PROJECT_NAME} ssh)
+else (UNIX)
+	target_link_libraries(${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/ext/ssh.lib ${CMAKE_SOURCE_DIR}/ext/libeay32.lib ${CMAKE_SOURCE_DIR}/ext/zlib.lib)
+endif (UNIX)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
 # man Pages
-find_program(P2M NAMES pod2man pod2man.pl)
-if (P2M)
-    message(STATUS "pod2man found, use the 'man' target to build")
-endif (P2M)
-set(DOC_DIR  ${CMAKE_SOURCE_DIR}/doc)
-set(P2M_OPTS --section=8 -c "ssh-based ping test utility" -d 2018-03-13 -r v0.1.4)
-set(MAN_SRC  ${DOC_DIR}/sshping.pod)
-set(MAN_TGT  ${DOC_DIR}/sshping.8)
-add_custom_command(
-    OUTPUT  ${MAN_TGT}
-    COMMAND ${P2M} ${P2M_OPTS} ${MAN_SRC} ${MAN_TGT}
-    DEPENDS ${MAN_SRC}
-    WORKING_DIRECTORY ${DOC_DIR}
-    COMMENT "Building manpage ${MAN_TGT}"
-    VERBATIM)
+if (UNIX)
+	find_program(P2M NAMES pod2man pod2man.pl)
+	if (P2M)
+		message(STATUS "pod2man found, use the 'man' target to build")
+	endif (P2M)
+	set(DOC_DIR  ${CMAKE_SOURCE_DIR}/doc)
+	set(P2M_OPTS --section=8 -c "ssh-based ping test utility" -d 2018-03-13 -r v0.1.4)
+	set(MAN_SRC  ${DOC_DIR}/sshping.pod)
+	set(MAN_TGT  ${DOC_DIR}/sshping.8)
+	add_custom_command(
+	    OUTPUT  ${MAN_TGT}
+	    COMMAND ${P2M} ${P2M_OPTS} ${MAN_SRC} ${MAN_TGT}
+	    DEPENDS ${MAN_SRC}
+	    WORKING_DIRECTORY ${DOC_DIR}
+	    COMMENT "Building manpage ${MAN_TGT}"
+	    VERBATIM)
+endif (UNIX)
+
 add_custom_target(man ALL DEPENDS ${MAN_TGT})
 install(FILES ${MAN_TGT} DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man8)
 
