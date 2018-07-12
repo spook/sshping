@@ -540,7 +540,7 @@ int run_echo_test(ssh_channel & chn) {
     for (int n = 0; (!char_limit || (n < char_limit))
                  && (!time_limit || (time(NULL) <= endt)); n++) {
 
-		uint64_t tw = get_time();
+        uint64_t tw = get_time();
 
         int i = n % (sizeof(wbuf) - 2);
         nbytes = ssh_channel_write(chn, &wbuf[i], 1);
@@ -558,7 +558,7 @@ int run_echo_test(ssh_channel & chn) {
             return SSH_ERROR;
         }
 
-		uint64_t tr = get_time();
+        uint64_t tr = get_time();
 
         uint64_t latency = nsec_diff(tw, tr);
         latencies.push_back(latency);
@@ -628,7 +628,7 @@ int run_upload_test(ssh_session ses) {
         return rc;
     }
 
-	uint64_t t2 = get_time();
+    uint64_t t2 = get_time();
 
 #ifdef _WIN32
 	const int mode = 448;
@@ -641,7 +641,7 @@ int run_upload_test(ssh_session ses) {
         buf[i] = (rand() & 0x3f) + 32;
     }
     for (int i=0; i < size; i++) {
-		rc = ssh_scp_push_file(scp, remfile, MEGA, mode);
+        rc = ssh_scp_push_file(scp, remfile, MEGA, mode);
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
             return rc;
@@ -656,7 +656,7 @@ int run_upload_test(ssh_session ses) {
     ssh_scp_close(scp);
     ssh_scp_free(scp);
 
-	uint64_t t3 = get_time();
+    uint64_t t3 = get_time();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(size * MEGA) / duration;
@@ -681,7 +681,7 @@ int run_download_test(ssh_session ses) {
     size_t avail = 0;
     size_t remaining = size * MEGA;
 
-	uint64_t t2 = get_time();
+    uint64_t t2 = get_time();
     while (remaining) {
         ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
         if (scp == NULL) {
@@ -737,7 +737,7 @@ int run_download_test(ssh_session ses) {
         ssh_scp_free(scp);
     }
 
-	uint64_t t3 = get_time();
+    uint64_t t3 = get_time();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(size * MEGA) / duration;
