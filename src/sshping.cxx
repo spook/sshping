@@ -23,10 +23,14 @@
  */
 
 #ifdef _WIN32
-#define LIBSSH_STATIC 1
-#pragma comment(lib, "Ws2_32.lib")
+  #ifdef _MSC_VER 
+	#include <BaseTsd.h>
+    typedef SSIZE_T ssize_t;
+  #endif
+  #define LIBSSH_STATIC 1
+  #pragma comment(lib, "Ws2_32.lib")
 #else
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 
 #include <algorithm>
@@ -47,8 +51,8 @@
 #endif
 
 #if defined(_MSC_VER)
-#include <BaseTsd.h>
-typedef SSIZE_T ssize_t;
+  #include <BaseTsd.h>
+  typedef SSIZE_T ssize_t;
 #endif
 
 #include "optionparser.h"
@@ -139,12 +143,11 @@ void die(const char* msg) {
 }
 
 #if _WIN32
-
-#include <windows.h>
-#include <conio.h>
-#ifndef PASS_MAX
-#  define PASS_MAX 512
-#endif
+  #include <windows.h>
+  #include <conio.h>
+  #ifndef PASS_MAX
+    #define PASS_MAX 512
+  #endif
 
 double PCFreq = 0;
 
@@ -205,7 +208,7 @@ char* strsep(char** stringp, const char* delim) {
 }
 
 // Replacement for the clock_gettime UNIX method
-uint64_t GetTime() {
+uint64_t get_time() {
 	LARGE_INTEGER li;
 	long temp = 0;
 	if (PCFreq == 0) {
@@ -442,7 +445,7 @@ ssh_session begin_session() {
     }
 
     // Try to connect
-	t0 = GetTime();
+	t0 = get_time();
     int rc = ssh_connect(ses);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Error connecting: %s\n", ssh_get_error(ses));
@@ -501,7 +504,7 @@ ssh_channel login_channel(ssh_session & ses) {
     }
 
     // Marker: Timing point for the initial handshake
-    t1 = GetTime();
+    t1 = get_time();
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
@@ -537,7 +540,7 @@ int run_echo_test(ssh_channel & chn) {
     for (int n = 0; (!char_limit || (n < char_limit))
                  && (!time_limit || (time(NULL) <= endt)); n++) {
 
-		uint64_t tw = GetTime();
+		uint64_t tw = get_time();
 
         int i = n % (sizeof(wbuf) - 2);
         nbytes = ssh_channel_write(chn, &wbuf[i], 1);
@@ -555,7 +558,7 @@ int run_echo_test(ssh_channel & chn) {
             return SSH_ERROR;
         }
 
-		uint64_t tr = GetTime();
+		uint64_t tr = get_time();
 
         uint64_t latency = nsec_diff(tw, tr);
         latencies.push_back(latency);
@@ -625,21 +628,20 @@ int run_upload_test(ssh_session ses) {
         return rc;
     }
 
-	uint64_t t2 = GetTime();
+	uint64_t t2 = get_time();
 
+#ifdef _WIN32
+	const int mode = 448;
+#else
+	const int mode = S_IRWXU;
+#endif
     char buf[MEGA];
     srand(getpid());
     for (size_t i=0; i < sizeof(buf); i++) {
         buf[i] = (rand() & 0x3f) + 32;
     }
     for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, remfile, MEGA, 
-#ifdef _WIN32 
-			448
-#else
-			S_IRWXU
-#endif
-		);
+		rc = ssh_scp_push_file(scp, remfile, MEGA, mode);
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
             return rc;
@@ -654,7 +656,7 @@ int run_upload_test(ssh_session ses) {
     ssh_scp_close(scp);
     ssh_scp_free(scp);
 
-	uint64_t t3 = GetTime();
+	uint64_t t3 = get_time();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(size * MEGA) / duration;
@@ -679,7 +681,7 @@ int run_download_test(ssh_session ses) {
     size_t avail = 0;
     size_t remaining = size * MEGA;
 
-	uint64_t t2 = GetTime();
+	uint64_t t2 = get_time();
     while (remaining) {
         ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
         if (scp == NULL) {
@@ -735,7 +737,7 @@ int run_download_test(ssh_session ses) {
         ssh_scp_free(scp);
     }
 
-	uint64_t t3 = GetTime();
+	uint64_t t3 = get_time();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = double(size * MEGA) / duration;
