@@ -23,10 +23,8 @@
  */
 
 #ifdef _WIN32
-  #ifdef _MSC_VER 
-	#include <BaseTsd.h>
-    typedef SSIZE_T ssize_t;
-  #endif
+  #include <BaseTsd.h>
+  typedef SSIZE_T ssize_t;
   #define LIBSSH_STATIC 1
   #pragma comment(lib, "Ws2_32.lib")
 #else
@@ -48,11 +46,6 @@
 
 #if (LIBSSH_VERSION_MAJOR == 0) && (LIBSSH_VERSION_MINOR < 6)
   #error "*** libssh must be version 0.6 or later"
-#endif
-
-#if defined(_MSC_VER)
-  #include <BaseTsd.h>
-  typedef SSIZE_T ssize_t;
 #endif
 
 #include "optionparser.h"
@@ -142,91 +135,87 @@ void die(const char* msg) {
     exit(255);
 }
 
-#if _WIN32
+#ifdef _WIN32
   #include <windows.h>
   #include <conio.h>
-  #ifndef PASS_MAX
-    #define PASS_MAX 512
-  #endif
 
-double PCFreq = 0;
+  double PCFreq = 0;
 
 // Replacement for the getpass UNIX method
-char *getpass(const char *prompt) {
-	char getpassbuf[PASS_MAX + 1];
-	size_t i = 0;
-	int c;
-	if (prompt) {
-		fputs(prompt, stderr);
-		fflush(stderr);
-	}
-	for (;;) {
-		c = _getch();
-		if (c != 0) {
-			if (c == '\r') {
-				getpassbuf[i] = '\0';
-				break;
-			}
-			else if (c == '\b' && i != 0) {
-				getpassbuf[i] = NULL;
-				i--;
-			}
-			else if (i < PASS_MAX && c != '\b') {
-				getpassbuf[i++] = c;
-			}
-			if (i >= PASS_MAX) {
-				getpassbuf[i] = '\0';
-				break;
-			}
-		}
-	}
-	if (prompt) {
-		fputs("\r\n", stderr);
-		fflush(stderr);
-	}
-	return _strdup(getpassbuf);
-}
+  char *getpass(const char *prompt) {
+	  static const int PASS_MAX = 512;
+      char getpassbuf[PASS_MAX + 1];
+      size_t i = 0;
+      int c;
+      if (prompt) {
+          fputs(prompt, stderr);
+          fflush(stderr);
+      }
+      for (;;) {
+      	c = _getch();
+      	if (c != 0) {
+              if (c == '\r') {
+                  getpassbuf[i] = '\0';
+                  break;
+              }
+              else if (c == '\b' && i != 0) {
+                  getpassbuf[i] = NULL;
+                  i--;
+              }
+              else if (i < PASS_MAX && c != '\b') {
+                  getpassbuf[i++] = c;
+              }
+              if (i >= PASS_MAX) {
+                  getpassbuf[i] = '\0';
+                  break;
+              }
+      	}
+      }
+      if (prompt) {
+          fputs("\r\n", stderr);
+          fflush(stderr);
+      }
+      return _strdup(getpassbuf);
+  }
 
 // Replacement for the getpid UNIX method
-DWORD getpid() {
-	return GetCurrentProcessId();
-}
+  DWORD getpid() {
+      return GetCurrentProcessId();
+  }
 
 // Replacement for the strsep UNIX method
-char* strsep(char** stringp, const char* delim) {
-	char* start = *stringp;
-	char* p;
-	p = (start != NULL) ? strpbrk(start, delim) : NULL;
-	if (p == NULL) {
-		*stringp = NULL;
-	}
-	else {
-		*p = '\0';
-		*stringp = p + 1;
-	}
-	return start;
-}
+  char* strsep(char** stringp, const char* delim) {
+      char* start = *stringp;
+      char* p;
+      p = (start != NULL) ? strpbrk(start, delim) : NULL;
+      if (p == NULL) {
+          *stringp = NULL;
+      }
+      else {
+          *p = '\0';
+          *stringp = p + 1;
+      }
+      return start;
+  } 
 
 // Replacement for the clock_gettime UNIX method
-uint64_t get_time() {
-	LARGE_INTEGER li;
-	long temp = 0;
-	if (PCFreq == 0) {
-		QueryPerformanceFrequency(&li);
-		PCFreq = (double)li.QuadPart / GIGA;
-	}
-	QueryPerformanceCounter(&li);
-	return double(li.QuadPart) / PCFreq;
-}
-
+  uint64_t get_time() {
+      LARGE_INTEGER li;
+      long temp = 0;
+      if (PCFreq == 0) {
+          QueryPerformanceFrequency(&li);
+          PCFreq = (double)li.QuadPart / GIGA;
+      }
+      QueryPerformanceCounter(&li);
+      return double(li.QuadPart) / PCFreq;
+  }
 #else
-
-uint64_t GetTime() {
-	struct timespec tz;
-	clock_gettime(CLOCK_MONOTONIC, &tz);
-	uint64_t output = (tz.tv_sec * GIGA + tz.tv_nsec);
-	return output;
-}
+  uint64_t get_time() {
+      struct timespec tz;
+      clock_gettime(CLOCK_MONOTONIC, &tz);
+      uint64_t output = (tz.tv_sec * GIGA + tz.tv_nsec);
+      return output;
+  }
 #endif
 
 // Format integers with delimiters
@@ -235,7 +224,7 @@ std::string fmtnum(uint64_t n) {
     snprintf(buf, sizeof(buf), "%" PRIu64, n);
     std::string fstr = buf;
     if (!delimited) return fstr;
-    ssize_t i = fstr.length() - 3; 
+    ssize_t i = fstr.length() - 3;
     while (i > 0) {
         fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC)
         i -= 3;
@@ -445,7 +434,7 @@ ssh_session begin_session() {
     }
 
     // Try to connect
-	t0 = get_time();
+    t0 = get_time();
     int rc = ssh_connect(ses);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Error connecting: %s\n", ssh_get_error(ses));
