@@ -10,7 +10,7 @@ add_executable(${PROJECT_NAME} src/sshping.cxx)
 if (UNIX)
 	target_link_libraries(${PROJECT_NAME} ssh)
 else (UNIX)
-	target_link_libraries(${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/ext/ssh.lib ${CMAKE_SOURCE_DIR}/ext/libeay32.lib ${CMAKE_SOURCE_DIR}/ext/zlib.lib)
+	target_link_libraries(${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/ext/ssh.lib ${CMAKE_SOURCE_DIR}/ext/libeay32.lib ${CMAKE_SOURCE_DIR}/ext/zlibstatic.lib)
 endif (UNIX)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 

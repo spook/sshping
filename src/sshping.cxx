@@ -62,6 +62,7 @@
 uint64_t		t0;
 uint64_t		t1;
 bool            delimited  = false;
+bool            key_wait   = false;
 int             zero       = 0;
 int             verbosity  = 0;
 int             char_limit = 0;
@@ -98,6 +99,7 @@ enum  { opNONE,
         opECMD,
         opHELP,
         opID,
+        opKEY,
         opPWD,
         opSIZE,
         opTIME,
@@ -105,37 +107,51 @@ enum  { opNONE,
         opVERB,
         opREM };
 const option::Descriptor usage[] = {
-    {opNONE, 0, "",  "",             Arg::None, "Usage: sshping [options] [user@]addr[:port]" },
-    {opNONE, 0, "",  "",             Arg::None, " " },
-    {opNONE, 0, "",  "",             Arg::None, "  SSH-based ping that measures interactive character echo latency" },
-    {opNONE, 0, "",  "",             Arg::None, "  and file transfer throughput.  Pronounced \"shipping\"." },
-    {opNONE, 0, "",  "",             Arg::None, " " },
-    {opNONE, 0, "",  "",             Arg::None, "Options:" },
-    {opBIND, 0, "b", "bindaddr",     Arg::Reqd, "  -b  --bindaddr IP    Bind to this source address"},
-    {opNUM,  0, "c", "count",        Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
-    {opDLM,  0, "d", "delimited",    Arg::None, "  -d  --delimited      Use delimiters in big numbers, eg 1,234,567"},
-    {opECMD, 0, "e", "echocmd",      Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
-    {opHELP, 0, "h", "help",         Arg::None, "  -h  --help           Print usage and exit"},
-    {opID,   0, "i", "identity",     Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
-    {opPWD,  0, "p", "password",     Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
-    {opTEST, 0, "r", "runtests",     Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
-    {opSIZE, 0, "s", "size",         Arg::Reqd, "  -s  --size MB        For speed tests, send/recv MB megabytes; default=8 MB"},
-    {opTIME, 0, "t", "time",         Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
-    {opCTIM, 0, "T", "connect-time", Arg::Reqd, "  -T  --connect-time S Time limit for ssh connection; default 10 sec"},
-    {opVERB, 0, "v", "verbose",      Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
-    {opREM,  0, "z", "remote",       Arg::Reqd, "  -z  --remote FILE    Remote file for up/download tests;"},
-    {opNONE, 0, "",  "",             Arg::None, "                           default=/tmp/sshping-PID.tmp" },
+    {opNONE, 0, "",  "",              Arg::None, "Usage: sshping [options] [user@]addr[:port]" },
+    {opNONE, 0, "",  "",              Arg::None, " " },
+    {opNONE, 0, "",  "",              Arg::None, "  SSH-based ping that measures interactive character echo latency" },
+    {opNONE, 0, "",  "",              Arg::None, "  and file transfer throughput.  Pronounced \"shipping\"." },
+    {opNONE, 0, "",  "",              Arg::None, " " },
+    {opNONE, 0, "",  "",              Arg::None, "Options:" },
+    {opBIND, 0, "b", "bindaddr",      Arg::Reqd, "  -b  --bindaddr IP    Bind to this source address"},
+    {opNUM,  0, "c", "count",         Arg::Reqd, "  -c  --count NCHARS   Number of characters to echo, default 1000"},
+    {opDLM,  0, "d", "delimited",     Arg::None, "  -d  --delimited      Use delimiters in big numbers, eg 1,234,567"},
+    {opECMD, 0, "e", "echocmd",       Arg::Reqd, "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
+    {opHELP, 0, "h", "help",          Arg::None, "  -h  --help           Print usage and exit"},
+    {opID,   0, "i", "identity",      Arg::Reqd, "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
+    {opKEY,  0, "k", "keyboard-wait", Arg::None, "  -k  --keyboard-wait  Program will wait for keyboard input to close"},
+    {opPWD,  0, "p", "password",      Arg::Reqd, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
+    {opTEST, 0, "r", "runtests",      Arg::Reqd, "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
+    {opSIZE, 0, "s", "size",          Arg::Reqd, "  -s  --size MB        For speed tests, send/recv MB megabytes; default=8 MB"},
+    {opTIME, 0, "t", "time",          Arg::Reqd, "  -t  --time SECS      Time limit for echo test"},
+    {opCTIM, 0, "T", "connect-time",  Arg::Reqd, "  -T  --connect-time S Time limit for ssh connection; default 10 sec"},
+    {opVERB, 0, "v", "verbose",       Arg::None, "  -v  --verbose        Show more output, use twice for lots: -vv"},
+    {opREM,  0, "z", "remote",        Arg::Reqd, "  -z  --remote FILE    Remote file for up/download tests;"},
+    {opNONE, 0, "",  "",              Arg::None, "                           default=/tmp/sshping-PID.tmp" },
     {0,0,0,0,0,0}
 };
 /* *INDENT-ON* */
 
 // Outta here!
-void die(const char* msg) {
+void die(const char* msg, int exit_no) {
     fprintf(stderr, "*** %s\n", msg);
-    exit(255);
+    if (key_wait) {
+        std::cout << "Press any key to exit..." << '\n';
+        getchar();
+    }
+    exit(exit_no);
+}
+
+void die(int exit_no) {
+    if (key_wait) {
+        std::cout << "Press any key to exit..." << '\n';
+        getchar();
+    }
+    exit(exit_no);
 }
 
 #ifdef _WIN32
+  #include <Ws2tcpip.h>
   #include <windows.h>
   #include <conio.h>
 
@@ -153,10 +169,13 @@ void die(const char* msg) {
       }
       for (;;) {
       	c = _getch();
-      	if (c != 0) {
+          if (c != 0) {
               if (c == '\r') {
                   getpassbuf[i] = '\0';
                   break;
+              }
+              else if (c == '\3') {
+                  exit(0);
               }
               else if (c == '\b' && i != 0) {
                   getpassbuf[i] = NULL;
@@ -169,7 +188,7 @@ void die(const char* msg) {
                   getpassbuf[i] = '\0';
                   break;
               }
-      	}
+      	  }
       }
       if (prompt) {
           fputs("\r\n", stderr);
@@ -210,6 +229,7 @@ void die(const char* msg) {
       return double(li.QuadPart) / PCFreq;
   }
 #else
+  #include <arpa/inet.h>
   uint64_t get_time() {
       struct timespec tz;
       clock_gettime(CLOCK_MONOTONIC, &tz);
@@ -279,7 +299,7 @@ int authenticate_pubkey(ssh_session & ses) {
 // Try password authentication
 int authenticate_password(ssh_session & ses) {
     if (!pass) {
-        char  qbuf[256];
+        char qbuf[256];
         if (user) {
             snprintf(qbuf, sizeof(qbuf),"Enter password for user %s: ", user);
         }
@@ -328,9 +348,11 @@ int authenticate_kbdint(ssh_session & ses) {
                 memset(buffer, 0, strlen(buffer));
             }
             else {
-                char* ptr;
-                ptr = getpass(prompt);
-                if (ssh_userauth_kbdint_setanswer(ses, iprompt, ptr) < 0) {
+                if (!pass) {
+                    pass = getpass(prompt);
+                }
+
+                if (ssh_userauth_kbdint_setanswer(ses, iprompt, pass) < 0) {
                     return SSH_AUTH_ERROR;
                 }
             }
@@ -757,24 +779,60 @@ void end_session(ssh_session & ses) {
     }
 }
 
+// returns port, ip_and_port gets converted to just ip
+std::string parse_ip_address(std::string& ip_and_port) {
+    char buf[16];
+    // is ip address alone
+    if (inet_pton(AF_INET, ip_and_port.c_str(), buf) ||
+        inet_pton(AF_INET6, ip_and_port.c_str(), buf)) {
+        return "22";
+    }
+
+    // That didn't work, try splitting the port off
+
+    // Remove square brackets
+    ip_and_port.erase(remove(ip_and_port.begin(), ip_and_port.end(), '['),
+        ip_and_port.end());
+    ip_and_port.erase(remove(ip_and_port.begin(), ip_and_port.end(), ']'),
+        ip_and_port.end());
+
+    const size_t ip_and_port_colon = ip_and_port.find_last_of(':');
+    const std::string ip = ip_and_port.substr(0, ip_and_port_colon);
+    const std::string port = ip_and_port.substr(ip_and_port_colon + 1);
+    // is ip and port
+    if (inet_pton(AF_INET, ip.c_str(), buf) ||
+        inet_pton(AF_INET6, ip.c_str(), buf)) {
+        ip_and_port = ip;
+        return port;
+    }
+
+    // That didn't work check if hostname
+    if (ip_and_port_colon != std::string::npos) {
+        ip_and_port = ip;
+        return port;
+    }
+
+    // if empty string, not valid ip address
+    return "22";
+}
 
 // The Main
 int main(int   argc,
-         char* argv[]) {
+    char* argv[]) {
     // Process the command line
-    argc -= (argc > 0);argv += (argc > 0); // skip program name argv[0] if present
+    argc -= (argc > 0); argv += (argc > 0); // skip program name argv[0] if present
     option::Stats  stats(usage, argc, argv);
     option::Option* opts = new option::Option[stats.options_max];
     option::Option* buffer = new option::Option[stats.buffer_max + 16];
     option::Parser parse(usage, argc, argv, opts, buffer);
+    key_wait = opts[opKEY];
     if (opts[opHELP]) {
         option::printUsage(std::cerr, usage);
-        return 0;
+        die(0);
     }
     if (parse.error() || (argc < 1) || (parse.nonOptionsCount() != 1)) {
         option::printUsage(std::cerr, usage); // I wish it didn't use streams
-        fprintf(stderr, "\n*** Command error, see usage\n");
-        return 255;
+        die("Command error, see usage\n", 255);
     }
     bool anyunk = false;
     for (option::Option* opt = opts[opNONE]; opt; opt = opt->next()) {
@@ -785,13 +843,16 @@ int main(int   argc,
         anyunk = true;
     }
     if (anyunk) {
-        return 255;
+        die(0);
     }
 
     // Parse values
     port = (char*)parse.nonOption(0);
-    addr = strsep(&port, ":");
-    user = strsep(&addr, "@");
+    user = strsep(&port, "@");
+    std::string ip = port;
+    std::string temp_port = parse_ip_address(ip);
+    port = (char*)temp_port.c_str();
+    addr = (char*)ip.c_str();
     if (!addr || !addr[0]) {
         addr = user;
         user = NULL;
@@ -801,8 +862,7 @@ int main(int   argc,
     }
     int nport = atoi(port);
     if (!nport || (nport < 1) || (nport > 65535)) {
-        fprintf(stderr, "*** Bad port, must be integer from 1 to 65535\n");
-        exit(255);
+        die("Bad port, must be integer from 1 to 65535\n", 255);
     }
 
     // Setup options
@@ -844,12 +904,10 @@ int main(int   argc,
     bool do_echo  = !opts[opTEST] || strchr(opts[opTEST].arg, 'e');
     bool do_speed = !opts[opTEST] || strchr(opts[opTEST].arg, 's');
     if (do_echo && (char_limit <= 0) && (time_limit <= 0)) {
-        fprintf(stderr, "*** For the echo test, a time limit or character count is required\n");
-        exit(255);
+        die("For the echo test, a time limit or character count is required\n", 255);
     }
     if (do_speed && (size <= 0)) {
-        fprintf(stderr, "*** For the speed test, the transfer size must be 1 MB or more\n");
-        exit(255);
+        die("For the speed test, the transfer size must be 1 MB or more\n", 255);
     }
     verbosity = opts[opVERB].count();
 
@@ -869,11 +927,11 @@ int main(int   argc,
     // Begin Session and login
     ssh_session ses = begin_session();
     if (!ses) {
-        die("Cannot establish ssh session");
+        die("Cannot establish ssh session", 255);
     }
     ssh_channel chn = login_channel(ses);
     if (!chn) {
-        die("Cannot login and run echo command");
+        die("Cannot login and run echo command", 255);
     }
 
     // Run the tests
@@ -883,6 +941,12 @@ int main(int   argc,
     if (do_speed) {
         run_upload_test(ses);
         run_download_test(ses);
+    }
+
+    // Program will wait for keyboard input to close
+    if (key_wait) {
+        std::cout << "Press any key to exit..." << '\n';
+        getchar();
     }
 
     // Cleanup
