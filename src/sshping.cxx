@@ -215,6 +215,7 @@ const option::Descriptor usage[] = {
       _getch();
   }
 #else
+  #include <termios.h>
   #include <arpa/inet.h>
   void keyboard_wait() {
       static struct termios oldt, newt;
@@ -318,7 +319,7 @@ int authenticate_password(ssh_session & ses) {
             snprintf(qbuf, sizeof(qbuf),"Enter password for user %s: ", user);
         }
         else {
-            strncpy_s(qbuf, "Enter your password: ", sizeof(qbuf));
+            strncpy(qbuf, "Enter your password: ", sizeof(qbuf));
         }
         uint64_t t2 = get_time();
         pass = getpass(qbuf);
