@@ -54,6 +54,6 @@ set(CPACK_PACKAGE_CONTACT "spook@MisfitMountain.org")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "sshping is an SSH-based ping-like utility that measures interactive character echo latency and file transfer throughput.")
 SET(CPACK_PACKAGE_VERSION_MAJOR "0")
 SET(CPACK_PACKAGE_VERSION_MINOR "1")
-SET(CPACK_PACKAGE_VERSION_PATCH "4")
+SET(CPACK_PACKAGE_VERSION_PATCH "5")
 include(CPack)
 
