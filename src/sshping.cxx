@@ -133,13 +133,14 @@ const option::Descriptor usage[] = {
 /* *INDENT-ON* */
 
 #ifdef _WIN32
+// TODO: Move this and other Winderz stuff to its own file
   #include <Ws2tcpip.h>
   #include <windows.h>
   #include <conio.h>
 
   double PCFreq = 0;
 
-// Replacement for the getpass UNIX method
+  // Replacement for the getpass UNIX method
   char *getpass(const char *prompt) {
 	  static const int PASS_MAX = 512;
       char getpassbuf[PASS_MAX + 1];
@@ -179,12 +180,12 @@ const option::Descriptor usage[] = {
       return _strdup(getpassbuf);
   }
 
-// Replacement for the getpid UNIX method
+  // Replacement for the getpid UNIX method
   DWORD getpid() {
       return GetCurrentProcessId();
   }
 
-// Replacement for the strsep UNIX method
+  // Replacement for the strsep UNIX method
   char* strsep(char** stringp, const char* delim) {
       char* start = *stringp;
       char* p;
@@ -199,7 +200,7 @@ const option::Descriptor usage[] = {
       return start;
   } 
 
-// Replacement for the clock_gettime UNIX method
+  // Replacement for the clock_gettime UNIX method
   uint64_t get_time() {
       LARGE_INTEGER li;
       long temp = 0;
@@ -224,7 +225,7 @@ const option::Descriptor usage[] = {
       newt.c_lflag &= ~ICANON;
       newt.c_lflag &= ~ECHO;
       tcsetattr(0, TCSANOW, &newt);
-      ch = getchar();
+      int ch = getchar();
       tcsetattr(0, TCSANOW, &oldt);
   }
   uint64_t get_time() {
