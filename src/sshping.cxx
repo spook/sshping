@@ -61,23 +61,24 @@
 
 uint64_t		t0;
 uint64_t		t1;
-bool            delimited  = false;
-bool            key_wait   = false;
-int             zero       = 0;
-int             verbosity  = 0;
-int             char_limit = 0;
-int             time_limit = 0;
-int             contim     = 10;
-int             size       = 8;
+bool            delimited    = false;
+bool            key_wait     = false;
+bool            ping_summary = false;
+int             zero         = 0;
+int             verbosity    = 0;
+int             char_limit   = 0;
+int             time_limit   = 0;
+int             contim       = 10;
+int             size         = 8;
 char            rembuf[32];
-char*           remfile    = NULL;
-char*           bynd       = NULL;
-char*           port       = NULL;
-char*           addr       = NULL;
-char*           user       = NULL;
-char*           pass       = NULL;
-char*           iden       = NULL;
-std::string     echo_cmd   = "cat > /dev/null";
+char*           remfile      = NULL;
+char*           bynd         = NULL;
+char*           port         = NULL;
+char*           addr         = NULL;
+char*           user         = NULL;
+char*           pass         = NULL;
+char*           iden         = NULL;
+std::string     echo_cmd     = "cat > /dev/null";
 
 /* *INDENT-OFF* */
 // Define a required argument for optionparse
@@ -101,6 +102,7 @@ enum  { opNONE,
         opID,
         opKEY,
         opPWD,
+        opPING,
         opSIZE,
         opTIME,
         opTEST,
@@ -121,6 +123,7 @@ const option::Descriptor usage[] = {
     {opID,   0, "i", "identity",      Arg::Reqd,     "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opKEY,  0, "k", "keyboard-wait", Arg::None,     "  -k  --keyboard-wait  Program will wait for keyboard input to close"},
     {opPWD,  0, "p", "password",      Arg::Optional, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
+    {opPING, 0, "P", "ping-summary",  Arg::None,     "  -P  --ping-summary   Append measurements in ping-like rtt line format"},
     {opTEST, 0, "r", "runtests",      Arg::Reqd,     "  -r  --runtests e|s   Run tests e=echo s=speed; default es=both"},
     {opSIZE, 0, "s", "size",          Arg::Reqd,     "  -s  --size MB        For speed tests, send/recv MB megabytes; default=8 MB"},
     {opTIME, 0, "t", "time",          Arg::Reqd,     "  -t  --time SECS      Time limit for echo test"},
@@ -226,6 +229,7 @@ const option::Descriptor usage[] = {
       newt.c_lflag &= ~ECHO;
       tcsetattr(0, TCSANOW, &newt);
       int ch = getchar();
+      (void)ch;
       tcsetattr(0, TCSANOW, &oldt);
   }
   uint64_t get_time() {
@@ -637,6 +641,14 @@ int run_echo_test(ssh_channel & chn) {
     printf("Maximum-Latency:   %13s nsec\n", fmtnum(max_latency).c_str());
     printf("Echo-Count:        %13s Bytes\n", fmtnum(num_sent).c_str());
 
+    if (ping_summary) {
+        printf("rtt min/avg/max/mdev = %ld.%03ld/%lu.%03ld/%ld.%03ld/%ld.%03ld ms\n",
+               (long)min_latency / 1000000, (long)(min_latency / 1000) % 1000,
+               (long)avg_latency / 1000000, (long)(avg_latency / 1000) % 1000,
+               (long)max_latency / 1000000, (long)(max_latency / 1000) % 1000,
+               (long)stddev / 1000000, (long)(stddev / 1000) % 1000);
+    }
+
     // Terminate the echo responder
     // TODO
     if (verbosity) {
@@ -892,6 +904,7 @@ int main(int   argc,
 
     // Setup options
     delimited = opts[opDLM];
+    ping_summary = opts[opPING];
     if (opts[opECMD]) {
         echo_cmd = opts[opECMD].arg;
     }
