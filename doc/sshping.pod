@@ -37,7 +37,7 @@ Short and long forms of options take the same arguments as shown.
     Number of characters to echo, default 1000
 
 -d, --delimited
-    Use delmiters in big numbers, eg 1,234,567
+    Use delimiters in big numbers, e.g. 1,234,567
 
 -e, --echocmd CMD
     Use CMD for echo command; default: cat > /dev/null
@@ -54,16 +54,20 @@ Short and long forms of options take the same arguments as shown.
 -p, --password PWD
     Use password PWD (can be seen, use with care)
 
+-P, --ping-summary
+    Append measurements in ping-like round-trip-time line format, e.g.
+    rtt min/avg/max/mdev = 1.371/2.095/2.505/0.389 ms
+
 -r, --runtests e|s
     Run these tests e=echo s=speed; default es=both
 
 -s, --size MB
-    For transfer speed test (the scp test), send/receive MB 
+    For transfer speed test (the scp test), send/receive MB
     megabytes; default=8 MB
 
 -t, --time SECS
-    Time limit for echo test.  We'll stop the test soon after 
-    this number of seconds, or the --couont number of characters, 
+    Time limit for echo test.  We'll stop the test soon after
+    this number of seconds, or the --couont number of characters,
     whichever comes first.
     Timing starts after the ssh login and shell creation.
 
@@ -81,47 +85,47 @@ Short and long forms of options take the same arguments as shown.
 =head2 Connection
 
 ssh-Login-Time
-    Time in nanoseconds to establish the tcp network connection, 
-    authenticate, and form the ssh session, then start an ssh 
-    channel, launch a remote shell, login to the remote system 
-    and read back any logon banners. 
+    Time in nanoseconds to establish the tcp network connection,
+    authenticate, and form the ssh session, then start an ssh
+    channel, launch a remote shell, login to the remote system
+    and read back any logon banners.
 
-    If an interactive password is needed to login, the time to supply 
+    If an interactive password is needed to login, the time to supply
     the password is included as well - so type fast!
 
 =head2 Character Echo Tests
 
 The I<character echo test> issues a single byte to the remote system,
 then waits for it to be echoed back.  It checks that the returned character
-is correct, then notes the wallclock time elapsed for the round-trip.  
+is correct, then notes the wallclock time elapsed for the round-trip.
 This is repeated with a different character until either the test time limit
 is expired or the character count limit is reached.
 
-Since only a subset of the printable ASCII character set is used, 
+Since only a subset of the printable ASCII character set is used,
 bytes == characters.
 
 Minimum-Latency
-    Fastest (lowest) round-trip time for a character echo, 
+    Fastest (lowest) round-trip time for a character echo,
     in nanoseconds.
 
 Median-Latency
     The median round-trip time for a character echo.  The median is
-    not the same as the average; think of this as the "typical" 
+    not the same as the average; think of this as the "typical"
     latency.  You probably want this number when you think average.
 
 Average-Latency
-    The average (mean) round-trip time for a character echo, 
+    The average (mean) round-trip time for a character echo,
     in nanoseconds.
 
 Average-Deviation
     The standard deviation on the average latency.  It quantifies
     how varied the latency is for each character's echo.  A lower
-    number indicates a tighter grouping of latencies, a 
+    number indicates a tighter grouping of latencies, a
     higher number indicates more variation in the latencies.
     "One" standard deviation is the average plus or minus this amount.
 
 Maximum-Latency
-    The slowest (highest) round-trip time for a character echo, 
+    The slowest (highest) round-trip time for a character echo,
     in nanoseconds.
 
 Echo-Count
@@ -136,8 +140,8 @@ when copying files over ssh.
 
 For the upload test, a random 1MB file is copied to
 the target system ("uploads" it), measuring the time required
-for the transfer.  The file is repeatedly copied to get transfer 
-sizes greater than 1MB as given by --size.  By default the 
+for the transfer.  The file is repeatedly copied to get transfer
+sizes greater than 1MB as given by --size.  By default the
 target file is /tmp/sshping-PID.tmp but this can be changed
 with --remote.
 
@@ -201,4 +205,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
