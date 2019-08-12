@@ -261,6 +261,7 @@ void die(int exit_no) {
 //  'scale' is the input scale, and MUST be multiple of 3 in the range -9 to 24,
 //  otherwise this will probably blow up.  You have been warned.
 std::string fmtnum(uint64_t n, int scale, const char* units) {
+
     // Our smallest time precision is nanoseconds, so no need to go smaller than 'nano'.
     // Instead of 'μ' we use 'u' for micro because it's a 1-byte character
     static const char prefixes[] = "num kMGTPEZY";
@@ -272,7 +273,7 @@ std::string fmtnum(uint64_t n, int scale, const char* units) {
         if (delimited) {
             ssize_t i = fstr.length() - 3;
             while (i > 0) {
-                fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC)
+                fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC) and the ' flag so printf() does the work
                 i -= 3;
             }
         }
@@ -311,7 +312,7 @@ std::string fmtnum(uint64_t n, int scale, const char* units) {
 
         // If we fall thru, it's too big or too small, so use a generic format
         f = n;
-        snprintf(buf, sizeof(buf), "%f %s", f, units);
+        snprintf(buf, sizeof(buf), "%'f %s", f, units);
         fstr = buf;
         return fstr;
     }
@@ -589,7 +590,7 @@ ssh_channel login_channel(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
-    printf("ssh-Login-Time: %21s\n", fmtnum(nsec_diff(t0, t1), -9, "sec").c_str());
+    printf("ssh-Login-Time: %21s\n", fmtnum(nsec_diff(t0, t1), -9, "s").c_str());
 
     return chn;
 }
@@ -679,12 +680,12 @@ int run_echo_test(ssh_channel & chn) {
         med_latency = (latencies[num_sent / 2 - 1] + latencies[(num_sent + 1) / 2 - 1]) / 2;
     }
     uint64_t stddev = standard_deviation(latencies, avg_latency);
-    printf("Minimum-Latency:   %18s\n", fmtnum(min_latency, -9, "sec").c_str());
-    printf("Median-Latency:    %18s\n", fmtnum(med_latency, -9, "sec").c_str());
-    printf("Average-Latency:   %18s\n", fmtnum(avg_latency, -9, "sec").c_str());
-    printf("Average-Deviation: %18s\n", fmtnum(stddev, -9, "sec").c_str());
-    printf("Maximum-Latency:   %18s\n", fmtnum(max_latency, -9, "sec").c_str());
-    printf("Echo-Count:        %19s\n", fmtnum(num_sent, 0, "Bytes").c_str());
+    printf("Minimum-Latency:   %18s\n", fmtnum(min_latency, -9, "s").c_str());
+    printf("Median-Latency:    %18s\n", fmtnum(med_latency, -9, "s").c_str());
+    printf("Average-Latency:   %18s\n", fmtnum(avg_latency, -9, "s").c_str());
+    printf("Average-Deviation: %18s\n", fmtnum(stddev,      -9, "s").c_str());
+    printf("Maximum-Latency:   %18s\n", fmtnum(max_latency, -9, "s").c_str());
+    printf("Echo-Count:        %17s\n", fmtnum(num_sent,     0, "B").c_str());
 
     // Terminate the echo responder
     // TODO
@@ -701,7 +702,7 @@ int run_upload_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Upload speed test started, remote file is %s\n", remfile);
     }
-    printf("Upload-Size:       %19s\n", fmtnum(size * MEGA, 0, "Bytes").c_str());
+    printf("Upload-Size:       %17s\n", fmtnum(size * MEGA, 0, "B").c_str());
 
     ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, remfile);
     if (scp == NULL) {
@@ -749,7 +750,7 @@ int run_upload_test(ssh_session ses) {
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = static_cast<uint64_t>(static_cast<double>(size * MEGA) / duration);
 
-    printf("Upload-Rate:       %23s\n", fmtnum(Bps, 0, "Bytes/sec").c_str());
+    printf("Upload-Rate:       %19s\n", fmtnum(Bps, 0, "B/s").c_str());
     if (verbosity) {
         printf("+++ Upload speed test completed\n");
     }
@@ -763,7 +764,7 @@ int run_download_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Download speed test started, remote file is %s\n", remfile);
     }
-    printf("Download-Size:     %19s\n", fmtnum(size * MEGA, 0, "Bytes").c_str());
+    printf("Download-Size:     %17s\n", fmtnum(size * MEGA, 0, "B").c_str());
 
     char   buf[MEGA];
     size_t avail = 0;
@@ -830,7 +831,7 @@ int run_download_test(ssh_session ses) {
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = static_cast<uint64_t>(static_cast<double>(size * MEGA) / duration);
 
-    printf("Download-Rate:     %23s\n", fmtnum(Bps, 0, "Bytes/sec").c_str());
+    printf("Download-Rate:     %19s\n", fmtnum(Bps, 0, "B/s").c_str());
     if (verbosity) {
         printf("+++ Download speed test completed\n");
     }
