@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017-2018 by Uncle Spook
+   Copyright (c) 2017-2019 by Uncle Spook
 
    MIT License
 
@@ -62,6 +62,7 @@
 uint64_t		t0;
 uint64_t		t1;
 bool            delimited    = false;
+bool            human        = false;
 bool            key_wait     = false;
 bool            ping_summary = false;
 int             zero         = 0;
@@ -99,6 +100,7 @@ enum  { opNONE,
         opDLM,
         opECMD,
         opHELP,
+        opHUMAN,
         opID,
         opKEY,
         opPWD,
@@ -120,6 +122,7 @@ const option::Descriptor usage[] = {
     {opDLM,  0, "d", "delimited",     Arg::None,     "  -d  --delimited      Use delimiters in big numbers, eg 1,234,567"},
     {opECMD, 0, "e", "echocmd",       Arg::Reqd,     "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
     {opHELP, 0, "h", "help",          Arg::None,     "  -h  --help           Print usage and exit"},
+    {opHUMAN,0, "H", "human-readable",Arg::None,     "  -H  --human-readable Use flesh-friendly units"},
     {opID,   0, "i", "identity",      Arg::Reqd,     "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
     {opKEY,  0, "k", "keyboard-wait", Arg::None,     "  -k  --keyboard-wait  Program will wait for keyboard input to close"},
     {opPWD,  0, "p", "password",      Arg::Optional, "  -p  --password PWD   Use password PWD (can be seen, use with care)"},
@@ -259,17 +262,64 @@ void die(int exit_no) {
 }
 
 // Format integers with delimiters
-std::string fmtnum(uint64_t n) {
-    char buf[21];
-    snprintf(buf, sizeof(buf), "%" PRIu64, n);
-    std::string fstr = buf;
-    if (!delimited) return fstr;
-    ssize_t i = fstr.length() - 3;
-    while (i > 0) {
-        fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC)
-        i -= 3;
+//  'scale' is the input scale, and MUST be multiple of 3 in the range -9 to 24,
+//  otherwise this will probably blow up.  You have been warned.
+std::string fmtnum(uint64_t n, int scale, const char* units) {
+
+    // Our smallest time precision is nanoseconds, so no need to go smaller than 'nano'.
+    // Instead of 'μ' we use 'u' for micro because it's a 1-byte character
+    static const char prefixes[] = "num kMGTPEZY";
+
+    if (!human) {
+        char buf[21];
+        snprintf(buf, sizeof(buf), "%" PRIu64, n);
+        std::string fstr = buf;
+        if (delimited) {
+            ssize_t i = fstr.length() - 3;
+            while (i > 0) {
+                fstr.insert(i, ",");    // TODO: Use the locale-specific method (LC_NUMERIC) and the ' flag so printf() does the work
+                i -= 3;
+            }
+        }
+        if (scale || strlen(units)) fstr += " ";
+        if (scale)                  fstr += prefixes[3+scale/3];
+        fstr += units;
+        return fstr;
     }
-    return fstr;
+    else {
+        // Flesh-friendly formats, we'll use 3-digits of precision
+        //  x.xx prefix+unit
+        //  xx.x prefix+unit
+        //  xxx prefix+unit
+        double f = n;
+        std::string fstr;
+        char buf[7 + strlen(units)];
+        for (int p=scale; p <= 24; p += 3) {
+            if (f >= 1000.0) {
+                f /= 1000.0;
+                continue;
+            }
+            if (f >= 100.0) {
+                snprintf(buf, sizeof(buf), "%3.0f %c%s", f, prefixes[3+p/3], units);
+                fstr = buf;
+                return fstr;
+            }
+            if (f >= 10.0) {
+                snprintf(buf, sizeof(buf), "%4.1f %c%s", f, prefixes[3+p/3], units);
+                fstr = buf;
+                return fstr;
+            }
+            snprintf(buf, sizeof(buf), "%4.2f %c%s", f, prefixes[3+p/3], units);
+            fstr = buf;
+            return fstr;
+        }
+
+        // If we fall thru, it's too big or too small, so use a generic format
+        f = n;
+        snprintf(buf, sizeof(buf), "%'f %s", f, units);
+        fstr = buf;
+        return fstr;
+    }
 }
 
 // Nanosecond difference between two timestamps
@@ -544,7 +594,7 @@ ssh_channel login_channel(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Login shell established\n");
     }
-    printf("ssh-Login-Time: %16s nsec\n", fmtnum(nsec_diff(t0, t1)).c_str());
+    printf("ssh-Login-Time: %21s\n", fmtnum(nsec_diff(t0, t1), -9, "s").c_str());
 
     return chn;
 }
@@ -634,12 +684,12 @@ int run_echo_test(ssh_channel & chn) {
         med_latency = (latencies[num_sent / 2 - 1] + latencies[(num_sent + 1) / 2 - 1]) / 2;
     }
     uint64_t stddev = standard_deviation(latencies, avg_latency);
-    printf("Minimum-Latency:   %13s nsec\n", fmtnum(min_latency).c_str());
-    printf("Median-Latency:    %13s nsec\n", fmtnum(med_latency).c_str());
-    printf("Average-Latency:   %13s nsec\n", fmtnum(avg_latency).c_str());
-    printf("Average-Deviation: %13s nsec\n", fmtnum(stddev).c_str());
-    printf("Maximum-Latency:   %13s nsec\n", fmtnum(max_latency).c_str());
-    printf("Echo-Count:        %13s Bytes\n", fmtnum(num_sent).c_str());
+    printf("Minimum-Latency:   %18s\n", fmtnum(min_latency, -9, "s").c_str());
+    printf("Median-Latency:    %18s\n", fmtnum(med_latency, -9, "s").c_str());
+    printf("Average-Latency:   %18s\n", fmtnum(avg_latency, -9, "s").c_str());
+    printf("Average-Deviation: %18s\n", fmtnum(stddev,      -9, "s").c_str());
+    printf("Maximum-Latency:   %18s\n", fmtnum(max_latency, -9, "s").c_str());
+    printf("Echo-Count:        %17s\n", fmtnum(num_sent,     0, "B").c_str());
 
     if (ping_summary) {
         printf("rtt min/avg/max/mdev = %ld.%03ld/%lu.%03ld/%ld.%03ld/%ld.%03ld ms\n",
@@ -664,7 +714,7 @@ int run_upload_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Upload speed test started, remote file is %s\n", remfile);
     }
-    printf("Upload-Size:       %13s Bytes\n", fmtnum(size * MEGA).c_str());
+    printf("Upload-Size:       %17s\n", fmtnum(size * MEGA, 0, "B").c_str());
 
     ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, remfile);
     if (scp == NULL) {
@@ -712,7 +762,7 @@ int run_upload_test(ssh_session ses) {
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = static_cast<uint64_t>(static_cast<double>(size * MEGA) / duration);
 
-    printf("Upload-Rate:       %13s Bytes/second\n", fmtnum(Bps).c_str());
+    printf("Upload-Rate:       %19s\n", fmtnum(Bps, 0, "B/s").c_str());
     if (verbosity) {
         printf("+++ Upload speed test completed\n");
     }
@@ -726,7 +776,7 @@ int run_download_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Download speed test started, remote file is %s\n", remfile);
     }
-    printf("Download-Size:     %13s Bytes\n", fmtnum(size * MEGA).c_str());
+    printf("Download-Size:     %17s\n", fmtnum(size * MEGA, 0, "B").c_str());
 
     char   buf[MEGA];
     size_t avail = 0;
@@ -793,7 +843,7 @@ int run_download_test(ssh_session ses) {
     if (duration == 0.0) duration = 0.000001;
     uint64_t Bps = static_cast<uint64_t>(static_cast<double>(size * MEGA) / duration);
 
-    printf("Download-Rate:     %13s Bytes/second\n", fmtnum(Bps).c_str());
+    printf("Download-Rate:     %19s\n", fmtnum(Bps, 0, "B/s").c_str());
     if (verbosity) {
         printf("+++ Download speed test completed\n");
     }
@@ -858,7 +908,8 @@ std::string parse_ip_address(std::string& ip_and_port) {
 
 // The Main
 int main(int   argc,
-    char* argv[]) {
+         char* argv[]) {
+
     // Process the command line
     argc -= (argc > 0); argv += (argc > 0); // skip program name argv[0] if present
     option::Stats  stats(usage, argc, argv);
@@ -903,6 +954,7 @@ int main(int   argc,
     }
 
     // Setup options
+    human     = opts[opHUMAN];
     delimited = opts[opDLM];
     ping_summary = opts[opPING];
     if (opts[opECMD]) {
@@ -991,4 +1043,3 @@ int main(int   argc,
     logout_channel(chn);
     end_session(ses);
 }
-
