@@ -38,6 +38,7 @@ Options:
   -H  --human-readable  Use flesh-friendly units
   -i  --identity FILE   Identity file, ie ssh private keyfile
   -p  --password PWD    Use password PWD (can be seen, use with care)
+  -P  --ping-summary    Append measurements in ping-like rtt line format
   -r  --runtests e|s    Run tests e=echo s=speed; default es=both
   -s  --size MB         For speed test, send/recv MB megabytes; default=8 MB
   -t  --time SECS       Time limit for echo test
