@@ -48,6 +48,9 @@ Short and long forms of options take the same arguments as shown.
 -h,  --help
     Print usage and exit
 
+-H, --human-readable
+    Use flesh-friendly units
+
 -i, --identity FILE
     Identity file, ie ssh private keyfile
 
@@ -166,17 +169,17 @@ Download-Rate
 =head1 EXAMPLES
 
     # bin/sshping -d cheyenne.example.com
-    ssh-Login-Time:    1,733,748,227 nsec
-    Minimum-Latency:         847,107 nsec
-    Median-Latency:          996,029 nsec
-    Average-Latency:         992,186 nsec
-    Average-Deviation:        67,079 nsec
-    Maximum-Latency:       1,289,470 nsec
-    Echo-Count:                1,000 Bytes
-    Upload-Size:           8,000,000 Bytes
-    Upload-Rate:           4,732,718 Bytes/second
-    Download-Size:         8,000,000 Bytes
-    Download-Rate:         3,781,725 Bytes/second
+    ssh-Login-Time:      1,835,377,610 ns
+    Minimum-Latency:           548,993 ns
+    Median-Latency:            698,494 ns
+    Average-Latency:           704,123 ns
+    Average-Deviation:          72,839 ns
+    Maximum-Latency:         1,075,017 ns
+    Echo-Count:                  1,000 B
+    Upload-Size:             8,000,000 B
+    Upload-Rate:             9,371,579 B/s
+    Download-Size:           8,000,000 B
+    Download-Rate:           5,493,034 B/s
 
 =head1 AUTHOR
 
@@ -184,7 +187,7 @@ Written by Uncle Spook.  https://github.com/spook/sshping
 
 =head1 LICENSE
 
-Copyright (c) 2017-2018 by Uncle Spook
+Copyright (c) 2017-2019 by Uncle Spook
 
 MIT License
 
@@ -205,3 +208,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
