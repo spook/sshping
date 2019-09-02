@@ -1,3 +1,5 @@
+![GitHub repo size](https://img.shields.io/github/repo-size/spook/sshping)
+
 # sshping
 ssh-based ping: measure character-echo latency and bandwidth for an interactive ssh session
 
