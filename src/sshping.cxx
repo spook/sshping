@@ -246,6 +246,7 @@ const option::Descriptor usage[] = {
 // Outta here!
 void die(const char* msg, int exit_no) {
     fprintf(stderr, "*** %s\n", msg);
+    ssh_finalize();
     if (key_wait) {
         printf("Press any key to exit...\n");
         keyboard_wait();
@@ -254,6 +255,7 @@ void die(const char* msg, int exit_no) {
 }
 
 void die(int exit_no) {
+    ssh_finalize();
     if (key_wait) {
         printf("Press any key to exit...\n");
         keyboard_wait();
@@ -501,7 +503,14 @@ ssh_session begin_session() {
     // Create session
     if (verbosity) {
         printf("+++ Attempting connection to %s:%s\n", addr, port);
+    } 
+
+    int rc = ssh_init();
+    if (rc != SSH_OK) {
+        fprintf(stderr, "*** Error ssh initialization failed");
+        return NULL;
     }
+
     ssh_session ses;
     ses = ssh_new();
     if (ses == NULL) {
@@ -532,7 +541,7 @@ ssh_session begin_session() {
 
     // Try to connect
     t0 = get_time();
-    int rc = ssh_connect(ses);
+    rc = ssh_connect(ses);
     if (rc != SSH_OK) {
         fprintf(stderr, "*** Error connecting: %s\n", ssh_get_error(ses));
         return NULL;
@@ -867,6 +876,7 @@ void end_session(ssh_session & ses) {
     if (verbosity) {
         printf("+++ Disconnected\n");
     }
+    ssh_finalize();
 }
 
 // returns port, ip_and_port gets converted to just ip
