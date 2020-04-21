@@ -2,7 +2,7 @@
 project(sshping)
 cmake_minimum_required(VERSION 2.8)
 
-#find_package(libssh)
+find_package(libssh REQUIRED)
 
 # Build the sshping binary
 include_directories(ext)
