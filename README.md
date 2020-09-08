@@ -19,7 +19,7 @@ echoes characters back.
 For the speed test, you may specify the number of megabytes to send (-s)
 and the target location for the copies (-z).
 
-The default output format is RFC-2822 complaint with simple integers so
+The default output format is RFC-2822 compliant with simple integers so
 parsing is easy.  You may also display delimiters to make reading of 
 large numbers easier, or you may use a "human readable" format that
 displays values using SI prefixes to keep the numberic value small.
