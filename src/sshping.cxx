@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2017-2019 by Uncle Spook
+   Copyright (c) 2017-2020 by Uncle Spook
+   https://github.com/spook/sshping
 
    MIT License
 
@@ -20,7 +21,7 @@
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
- */
+*/
 
 #ifdef _WIN32
   #include <BaseTsd.h>
@@ -50,7 +51,7 @@
 
 #include "optionparser.h"
 
-#define DEFAULT_COUNT 1000
+#define DEFAULT_COUNT   1000
 #define MEGA         1000000
 #define GIGA      1000000000
 #define GIGAF     1000000000.0
