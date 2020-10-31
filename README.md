@@ -36,6 +36,7 @@ Options:
   -c  --count NCHARS    Number of characters to echo, default 1000
   -d  --delimited       Use delimiters in big numbers, eg 1,234,567
   -e  --echocmd CMD     Use CMD for echo command; default: cat > /dev/null
+  -f  --config-file F   Read the ssh config file F for options
   -h  --help            Print usage and exit
   -H  --human-readable  Use flesh-friendly units
   -i  --identity FILE   Identity file, ie ssh private keyfile

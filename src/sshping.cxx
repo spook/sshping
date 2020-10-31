@@ -60,6 +60,12 @@
   #define PRIu64 "llu"
 #endif
 
+#define _CKERR(E)       \
+    if ((E) != 0) {     \
+        fprintf(stderr, "*** Option set error: %s\n", ssh_get_error(ses));  \
+        return 0;       \
+    }
+
 uint64_t		t0;
 uint64_t		t1;
 bool            delimited    = false;
@@ -80,6 +86,7 @@ char*           addr         = NULL;
 char*           user         = NULL;
 char*           pass         = NULL;
 char*           iden         = NULL;
+char*           ssh_config   = NULL;
 std::string     echo_cmd     = "cat > /dev/null";
 
 /* *INDENT-OFF* */
@@ -100,6 +107,7 @@ enum  { opNONE,
         opCTIM,
         opDLM,
         opECMD,
+        opCFG,
         opHELP,
         opHUMAN,
         opID,
@@ -122,6 +130,7 @@ const option::Descriptor usage[] = {
     {opNUM,  0, "c", "count",         Arg::Reqd,     "  -c  --count NCHARS   Number of characters to echo, default 1000"},
     {opDLM,  0, "d", "delimited",     Arg::None,     "  -d  --delimited      Use delimiters in big numbers, eg 1,234,567"},
     {opECMD, 0, "e", "echocmd",       Arg::Reqd,     "  -e  --echocmd CMD    Use CMD for echo command; default: cat > /dev/null"},
+    {opCFG,  0, "F", "config-file",   Arg::Reqd,     "  -F  --config-file F  Read the ssh config file F for options"},
     {opHELP, 0, "h", "help",          Arg::None,     "  -h  --help           Print usage and exit"},
     {opHUMAN,0, "H", "human-readable",Arg::None,     "  -H  --human-readable Use flesh-friendly units"},
     {opID,   0, "i", "identity",      Arg::Reqd,     "  -i  --identity FILE  Identity file, ie ssh private keyfile"},
@@ -521,23 +530,26 @@ ssh_session begin_session() {
     // Set options
     int sshverbose = verbosity >= 2 ? SSH_LOG_PROTOCOL : 0;
     int stricthost = 0;
-    ssh_options_set(ses, SSH_OPTIONS_HOST, addr);
-    ssh_options_set(ses, SSH_OPTIONS_PORT_STR, port);
+    _CKERR(ssh_options_set(ses, SSH_OPTIONS_HOST, addr));
+    _CKERR(ssh_options_set(ses, SSH_OPTIONS_PORT_STR, port));
     if (user) {
-        ssh_options_set(ses, SSH_OPTIONS_USER, user);
+        _CKERR(ssh_options_set(ses, SSH_OPTIONS_USER, user));
     }
     if (contim) {
-        ssh_options_set(ses, SSH_OPTIONS_TIMEOUT, &contim);
-        ssh_options_set(ses, SSH_OPTIONS_TIMEOUT_USEC, &zero);
+        _CKERR(ssh_options_set(ses, SSH_OPTIONS_TIMEOUT, &contim));
+        _CKERR(ssh_options_set(ses, SSH_OPTIONS_TIMEOUT_USEC, &zero));
     }
-    ssh_options_set(ses, SSH_OPTIONS_COMPRESSION, "no");
-    ssh_options_set(ses, SSH_OPTIONS_STRICTHOSTKEYCHECK, &stricthost);
-    ssh_options_set(ses, SSH_OPTIONS_LOG_VERBOSITY, &sshverbose);
+    _CKERR(ssh_options_set(ses, SSH_OPTIONS_COMPRESSION, "no"));
+    _CKERR(ssh_options_set(ses, SSH_OPTIONS_STRICTHOSTKEYCHECK, &stricthost));
+    _CKERR(ssh_options_set(ses, SSH_OPTIONS_LOG_VERBOSITY, &sshverbose));
     if (iden) {
-        ssh_options_set(ses, SSH_OPTIONS_IDENTITY, iden);
+        _CKERR(ssh_options_set(ses, SSH_OPTIONS_IDENTITY, iden));
     }
     if (bynd) {
-        ssh_options_set(ses, SSH_OPTIONS_BINDADDR, bynd);
+        _CKERR(ssh_options_set(ses, SSH_OPTIONS_BINDADDR, bynd));
+    }
+    if (ssh_config) {
+        _CKERR(ssh_options_parse_config(ses, ssh_config));
     }
 
     // Try to connect
@@ -923,10 +935,10 @@ int main(int   argc,
 
     // Process the command line
     argc -= (argc > 0); argv += (argc > 0); // skip program name argv[0] if present
-    option::Stats  stats(usage, argc, argv);
+    option::Stats   stats(usage, argc, argv);
     option::Option* opts = new option::Option[stats.options_max];
     option::Option* buffer = new option::Option[stats.buffer_max + 16];
-    option::Parser parse(usage, argc, argv, opts, buffer);
+    option::Parser  parse(usage, argc, argv, opts, buffer);
     key_wait = opts[opKEY];
     if (opts[opHELP]) {
         option::printUsage(std::cerr, usage);
@@ -980,6 +992,9 @@ int main(int   argc,
     if (opts[opBIND]) {
         bynd = (char*)opts[opBIND].arg;
     }
+    if (opts[opCFG]) {
+        ssh_config = (char*)opts[opCFG].arg;
+    }
     if (opts[opREM]) {
         remfile = (char*)opts[opREM].arg;
     }
@@ -1022,6 +1037,7 @@ int main(int   argc,
         printf("Host: %s\n", addr);
         printf("Port: %d\n", nport);
         printf("Echo: %s\n", echo_cmd.c_str());
+        printf(" Cfg: %s\n", ssh_config ? ssh_config : "--default--");
         printf("\n");
     }
 

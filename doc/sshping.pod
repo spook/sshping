@@ -45,7 +45,16 @@ Short and long forms of options take the same arguments as shown.
     remote system (sshping adds the newline) so that anything
     "typed" is echoed back.
 
--h,  --help
+-f, --config-file F
+    Read and parse the ssh configuration file F for options.
+    Depending upon which version of libssh you have, you may not
+    see any error if the file F is missing or had bad syntax.
+    You should check for the existance of file F in your script
+    before passing it here.
+    See ssh_config(5) for details of the file's contents.
+    Default is ~/.ssh/config.
+
+-h, --help
     Print usage and exit
 
 -H, --human-readable
