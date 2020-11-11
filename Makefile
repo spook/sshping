@@ -1,15 +1,22 @@
 # See https://github.com/spook/sshping
 
+LIBSSH_INCLUDE ?= /usr/include/libssh/libssh.h
+LIBSSH_INCLUDE2 = /usr/local/include/libssh/libssh.h
+
+ifeq ($(wildcard $(LIBSSH_INCLUDE)),)
+	LIBSSH_INCLUDE = $(LIBSSH_INCLUDE2)
+endif
+
 .PHONY=default sshping man
 
 default: sshping
 
 sshping: bin/sshping
 
-bin/sshping: src/sshping.cxx /usr/include/libssh/libssh.h
+bin/sshping: src/sshping.cxx $(LIBSSH_INCLUDE)
 	g++ -Wall -I ext/ -o bin/sshping src/sshping.cxx -lssh
 
-/usr/include/libssh/libssh.h:
+$(LIBSSH_INCLUDE):
 	echo '*** Please install libssh-dev, libssh-devel, or similar package'
 	exit 2
 
