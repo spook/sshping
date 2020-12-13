@@ -758,7 +758,7 @@ int run_upload_test(ssh_session ses) {
 #else
 	const int mode = S_IRWXU;
 #endif
-    char buf[MEGA];
+    char* buf = new char[MEGA];
     srand(getpid());
     for (size_t i=0; i < sizeof(buf); i++) {
         buf[i] = (rand() & 0x3f) + 32;
@@ -767,12 +767,14 @@ int run_upload_test(ssh_session ses) {
         rc = ssh_scp_push_file(scp, remfile, MEGA, mode);
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
+            delete[] buf;
             return rc;
         }
 
         rc = ssh_scp_write(scp, buf, MEGA);
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
+            delete[] buf;
             return rc;
         }
     }
@@ -788,6 +790,8 @@ int run_upload_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Upload speed test completed\n");
     }
+
+    delete[] buf;
     return SSH_OK;
 }
 
@@ -800,7 +804,7 @@ int run_download_test(ssh_session ses) {
     }
     printf("Download-Size:     %17s\n", fmtnum(size * MEGA, 0, "B").c_str());
 
-    char   buf[MEGA];
+    char* buf = new char[MEGA];
     size_t avail = 0;
     size_t remaining = size * MEGA;
 
@@ -809,6 +813,7 @@ int run_download_test(ssh_session ses) {
         ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
         if (scp == NULL) {
             fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
+            delete[] buf;
             return SSH_ERROR;
         }
 
@@ -816,6 +821,7 @@ int run_download_test(ssh_session ses) {
         if (rc != SSH_OK) {
             fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
             ssh_scp_free(scp);
+            delete[] buf;
             return rc;
         }
 
@@ -824,6 +830,7 @@ int run_download_test(ssh_session ses) {
             fprintf(stderr, "*** Cannot request download file - got %d: %s\n", rc, ssh_get_error(ses));
             ssh_scp_close(scp);
             ssh_scp_free(scp);
+            delete[] buf;
             return rc;
         }
 
@@ -839,6 +846,7 @@ int run_download_test(ssh_session ses) {
                 fprintf(stderr, "*** Remote file size must be non-zero\n");
                 ssh_scp_close(scp);
                 ssh_scp_free(scp);
+                delete[] buf;
                 return rc;
             }
         }
@@ -852,6 +860,7 @@ int run_download_test(ssh_session ses) {
             fprintf(stderr, "*** Failed read on file download: %s\n", ssh_get_error(ses));
             ssh_scp_close(scp);
             ssh_scp_free(scp);
+            delete[] buf;
             return rc;
         }
 
@@ -869,6 +878,8 @@ int run_download_test(ssh_session ses) {
     if (verbosity) {
         printf("+++ Download speed test completed\n");
     }
+
+    delete[] buf;
     return SSH_OK;
 }
 
