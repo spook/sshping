@@ -1,8 +1,8 @@
 # See https://github.com/spook/sshping
 project(sshping)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
 
-#find_package(libssh)
+find_package(libssh REQUIRED)
 
 # Build the sshping binary
 include_directories(ext)
