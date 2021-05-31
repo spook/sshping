@@ -205,7 +205,7 @@ const option::Descriptor usage[] = {
   char* strsep(char** stringp, const char* delim) {
       char* start = *stringp;
       char* p;
-      p = (start != NULL) ? strpbrk(start, delim) : NULL;
+      p = (start != NULL) ? strrchr(start, delim) : NULL;
       if (p == NULL) {
           *stringp = NULL;
       }
@@ -962,12 +962,12 @@ int main(int   argc,
 
     // Parse values
     port = (char*)parse.nonOption(0);
-    user = strsep(&port, "@");
+    user = strndup(port, strrchr(port, '@') - port);
     if (!port || !port[0]) {
         port = user;
         user = NULL;
     }
-    std::string ip = port;
+    std::string ip = strrchr(port, '@') + 1;
     std::string temp_port = parse_ip_address(ip);
     port = (char*)temp_port.c_str();
     addr = (char*)ip.c_str();
