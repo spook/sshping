@@ -643,10 +643,12 @@ int run_echo_test(ssh_channel & chn) {
     char                  wbuf[]      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n";
     char                  rbuf[2];
     std::vector<uint64_t> latencies;
-    time_t                endt = time(NULL) + time_limit;
-    time_t                tv   = 0;
+    uint64_t              endt   = get_time() + ((uint64_t)(time_limit) * GIGA);
+    uint64_t              tv     = 0;
+    int                   log_hz = 60;
+    uint64_t              log_t  = GIGA / log_hz;
     for (int n = 0; (!char_limit || (n < char_limit))
-                 && (!time_limit || (time(NULL) <= endt)); n++) {
+                 && (!time_limit || (get_time() <= endt)); n++) {
 
         uint64_t tw = get_time();
 
@@ -671,18 +673,19 @@ int run_echo_test(ssh_channel & chn) {
         uint64_t latency = nsec_diff(tw, tr);
         latencies.push_back(latency);
         tot_latency += latency;
-
-        if (verbosity && ((time(NULL) - tv) > 3)) {
-            tv = time(NULL);
-            printf("  + %d/%d\r", n, char_limit);
+        
+        // Update output at 60hz
+        // If using -vv, send every ping
+        bool update_output = (nsec_diff(tv, tr) > log_t) || (verbosity >= 2);
+        
+        if (update_output) {
+            tv = tr;
+            int nchars = 37;
+            nchars-=printf("Ping ");
+            nchars-=printf("%d/%d:", n, char_limit);
+            printf("%*s\r", nchars, fmtnum(latency, -9, "s").c_str());
+            if (verbosity >= 2) printf("\n");
             fflush(stdout);
-        }
-        if (delimited && !verbosity) {
-            if ((time(NULL) - tv) > 1) {
-                tv = time(NULL);
-                printf("Echo-Count:        %13d\r", n);
-                fflush(stdout);
-            }
         }
     }
 
