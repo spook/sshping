@@ -88,12 +88,20 @@ Install the libssh-dev (or libssh-devel) package, version 0.6 or later:
     sudo apt-get install libssh-dev
       ...or
     sudo yum install libssh-devel
+      ...or
+    brew install libssh
       ...or whatever works on your platform
 
 From the main directory (where this README.md file is located), run 'make':
 
     cd sshping
     make
+
+By default, `/usr/include/libssh/libssh.h` and `/usr/local/include/libssh/libssh.h` will be searched to locate `libssh.h`.
+Optionally, specify a path to `libssh.h` with `LIBSSH_INCLUDE` variable:
+
+    cd sshping
+    make -e LIBSSH_INCLUDE=/path/to/libssh/libssh.h
 
 The resultant binary will be in the bin/ directory.  You may copy this to 
 your system binary location, for example:
