@@ -34,7 +34,7 @@ if (UNIX)
 endif (UNIX)
 
 add_custom_target(man ALL DEPENDS ${MAN_TGT})
-install(FILES ${MAN_TGT} DESTINATION ${CMAKE_INSTALL_PREFIX}/man/man8)
+install(FILES ${MAN_TGT} DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man8)
 
 # Packaging for RPM or DEB
 find_program(rpmbuild_path "rpmbuild" FALSE)
