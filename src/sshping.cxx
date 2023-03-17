@@ -51,6 +51,8 @@
 
 #include "optionparser.h"
 
+#define DEFAULT_PORT_STR "22"
+
 #define DEFAULT_COUNT   1000
 #define MEGA         1000000
 #define GIGA      1000000000
@@ -512,7 +514,9 @@ ssh_session begin_session() {
 
     // Create session
     if (verbosity) {
-        printf("+++ Attempting connection to %s:%s\n", addr, port);
+        printf("+++ Attempting connection to %s:%s", addr, port);
+        if (user) printf(" as user '%s'", user);
+        printf("\n");            
     } 
 
     int rc = ssh_init();
@@ -906,43 +910,6 @@ void end_session(ssh_session & ses) {
     ssh_finalize();
 }
 
-// returns port, ip_and_port gets converted to just ip
-std::string parse_ip_address(std::string& ip_and_port) {
-    char buf[16];
-    // is ip address alone
-    if (inet_pton(AF_INET, ip_and_port.c_str(), buf) ||
-        inet_pton(AF_INET6, ip_and_port.c_str(), buf)) {
-        return "22";
-    }
-
-    // That didn't work, try splitting the port off
-
-    // Remove square brackets
-    ip_and_port.erase(remove(ip_and_port.begin(), ip_and_port.end(), '['),
-        ip_and_port.end());
-    ip_and_port.erase(remove(ip_and_port.begin(), ip_and_port.end(), ']'),
-        ip_and_port.end());
-
-    const size_t ip_and_port_colon = ip_and_port.find_last_of(':');
-    const std::string ip = ip_and_port.substr(0, ip_and_port_colon);
-    const std::string port = ip_and_port.substr(ip_and_port_colon + 1);
-    // is ip and port
-    if (inet_pton(AF_INET, ip.c_str(), buf) ||
-        inet_pton(AF_INET6, ip.c_str(), buf)) {
-        ip_and_port = ip;
-        return port;
-    }
-
-    // That didn't work check if hostname
-    if (ip_and_port_colon != std::string::npos) {
-        ip_and_port = ip;
-        return port;
-    }
-
-    // if empty string, not valid ip address
-    return "22";
-}
-
 // The Main
 int main(int   argc,
          char* argv[]) {
@@ -974,20 +941,44 @@ int main(int   argc,
         die(0);
     }
 
-    // Parse values
-    port = (char*)parse.nonOption(0);
-    user = strndup(port, strrchr(port, '@') - port);
-    if (!port || !port[0]) {
-        port = user;
-        user = NULL;
+    // Split target user@addr:port into parts
+    user = NULL;
+    addr = (char*)parse.nonOption(0);
+    port = NULL;
+    char* atpos = strchr(addr, '@');
+    if (atpos) {
+        user = addr; *atpos = '\0';
+        if (!*user) user = NULL;
+        addr = atpos + 1;
     }
-    std::string ip = strrchr(port, '@') + 1;
-    std::string temp_port = parse_ip_address(ip);
-    port = (char*)temp_port.c_str();
-    addr = (char*)ip.c_str();
-    int nport = atoi(port);
-    if (!nport || (nport < 1) || (nport > 65535)) {
-        die("Bad port, must be integer from 1 to 65535\n", 255);
+    char* bkpos = strrchr(addr, ']'); // If IPv6 don't look inside brackets
+    char* clpos = strrchr(bkpos? bkpos : addr, ':'); // colon position
+    if (clpos) {
+        *clpos = '\0';  // End the address part here, change colon to NUL
+        port   = clpos + 1;
+        if (*port) {
+            int nport = atoi(port);
+            if (!nport || (nport < 1) || (nport > 65535)) {
+                die("Bad port, must be integer from 1 to 65535\n", 255);
+            }
+        }
+        else {
+            port = NULL;
+        }
+    }
+    if (bkpos) {
+        // Remove IPv6 brackets if present
+        if (*addr != '[') {
+          die("Unbalanced IPv6 address brackets\n", 255);
+        }
+        *bkpos = '\0';
+        addr++;
+    }
+    if (!strlen(addr)) {
+        die("Missing target address\n", 255);
+    }
+    if (!port) {
+        port = strdup(DEFAULT_PORT_STR);
     }
 
     // Setup options
@@ -1049,7 +1040,7 @@ int main(int   argc,
     if (verbosity) {
         printf("User: %s\n", user ? user : "--not specified--");
         printf("Host: %s\n", addr);
-        printf("Port: %d\n", nport);
+        printf("Port: %s\n", port);
         printf("Echo: %s\n", echo_cmd.c_str());
         printf(" Cfg: %s\n", ssh_config ? ssh_config : "--default--");
         printf("\n");
@@ -1081,6 +1072,7 @@ int main(int   argc,
     }
 
     // Cleanup
+    if (port) free(port);
     logout_channel(chn);
     end_session(ses);
 }
