@@ -957,8 +957,10 @@ int main(int   argc,
         *clpos = '\0';  // End the address part here, change colon to NUL
         port   = clpos + 1;
         if (*port) {
-            int nport = atoi(port);
-            if (!nport || (nport < 1) || (nport > 65535)) {
+            errno = 0;
+            char* endp = NULL;
+            long nport = strtol(port, &endp, 10);
+            if (errno || *endp || (nport < 1) || (nport > 65535)) {
                 die("Bad port, must be integer from 1 to 65535\n", 255);
             }
         }
