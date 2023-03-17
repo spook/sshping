@@ -54,6 +54,7 @@
 #define DEFAULT_PORT_STR "22"
 
 #define DEFAULT_COUNT   1000
+#define DLBUF_SIZE   1000000
 #define MEGA         1000000
 #define GIGA      1000000000
 #define GIGAF     1000000000.0
@@ -811,7 +812,7 @@ int run_download_test(ssh_session ses) {
     }
     printf("Download-Size:     %17s\n", fmtnum(size * MEGA, 0, "B").c_str());
 
-    char* buf = new char[MEGA];
+    char* buf = new char[DLBUF_SIZE];
     size_t avail = 0;
     size_t remaining = size * MEGA;
 
@@ -857,10 +858,9 @@ int run_download_test(ssh_session ses) {
                 return rc;
             }
         }
-
         size_t amount = avail;
-        if (amount > remaining)   amount = remaining;
-        if (amount > sizeof(buf)) amount = sizeof(buf);
+        if (amount > remaining)  amount = remaining;
+        if (amount > DLBUF_SIZE) amount = DLBUF_SIZE;
         ssh_scp_accept_request(scp);
         rc = ssh_scp_read(scp, buf, amount);
         if (rc == SSH_ERROR) {
