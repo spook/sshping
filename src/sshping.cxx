@@ -1074,7 +1074,7 @@ int main(int   argc,
     }
 
     // Cleanup
-    if (port) free(port);
+    if (!clpos && port) free(port);
     logout_channel(chn);
     end_session(ses);
 }
