@@ -362,11 +362,13 @@ int discard_output(ssh_channel & chn,
                                               sizeof(buffer),
                                               /*is-stderr*/ 0,
                                               max_wait);
+
+        if (nbytes == 0 || nbytes == SSH_AGAIN) {
+            return SSH_OK; // timeout, we're done
+        }
+
         if (nbytes < 0) {
             return SSH_ERROR;
-        }
-        if (nbytes == 0) {
-            return SSH_OK; // timeout, we're done
         }
     }
     return SSH_ERROR;
