@@ -945,7 +945,7 @@ int main(int   argc,
     user = NULL;
     addr = (char*)parse.nonOption(0);
     port = NULL;
-    char* atpos = strchr(addr, '@');
+    char* atpos = strrchr(addr, '@');
     if (atpos) {
         user = addr; *atpos = '\0';
         if (!*user) user = NULL;
