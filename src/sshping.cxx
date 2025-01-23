@@ -975,8 +975,6 @@ int main(int   argc,
         if (*addr != '[') {
           die("Unbalanced IPv6 address brackets\n", 255);
         }
-        *bkpos = '\0';
-        addr++;
     }
     if (!strlen(addr)) {
         die("Missing target address\n", 255);
