@@ -33,9 +33,11 @@
 #endif
 
 #include <algorithm>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <iostream>
 #include <libssh/libssh.h>
+#include <libssh/sftp.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -739,6 +741,49 @@ int run_echo_test(ssh_channel & chn) {
     return SSH_OK;
 }
 
+// Start an SFTP session on the existing SSH connection
+sftp_session begin_sftp_session(ssh_session ses) {
+    sftp_session sftp = sftp_new(ses);
+    if (sftp == NULL) {
+        fprintf(stderr, "*** Cannot allocate SFTP session: %s\n", ssh_get_error(ses));
+        return NULL;
+    }
+
+    int rc = sftp_init(sftp);
+    if (rc != SSH_OK) {
+        fprintf(stderr, "*** Cannot init SFTP session: %s (SFTP error %d)\n",
+                ssh_get_error(ses),
+                sftp_get_error(sftp));
+        sftp_free(sftp);
+        return NULL;
+    }
+    return sftp;
+}
+
+// Write exactly len bytes unless SFTP reports an error
+int sftp_write_all(ssh_session ses,
+                   sftp_session sftp,
+                   sftp_file    file,
+                   const char*  buf,
+                   size_t       len) {
+    size_t written = 0;
+    while (written < len) {
+        ssize_t nbytes = sftp_write(file, buf + written, len - written);
+        if (nbytes < 0) {
+            fprintf(stderr, "*** Can't write to remote file: %s (SFTP error %d)\n",
+                    ssh_get_error(ses),
+                    sftp_get_error(sftp));
+            return SSH_ERROR;
+        }
+        if (nbytes == 0) {
+            fprintf(stderr, "*** SFTP write made no progress\n");
+            return SSH_ERROR;
+        }
+        written += nbytes;
+    }
+    return SSH_OK;
+}
+
 // Run an upload speed test
 int run_upload_test(ssh_session ses) {
 
@@ -748,20 +793,10 @@ int run_upload_test(ssh_session ses) {
     }
     printf("Upload-Size:       %17s\n", fmtnum(size * MEGA, 0, "B").c_str());
 
-    ssh_scp scp = ssh_scp_new(ses, SSH_SCP_WRITE, remfile);
-    if (scp == NULL) {
-        fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
+    sftp_session sftp = begin_sftp_session(ses);
+    if (sftp == NULL) {
         return SSH_ERROR;
     }
-
-    int rc = ssh_scp_init(scp);
-    if (rc != SSH_OK) {
-        fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
-        ssh_scp_free(scp);
-        return rc;
-    }
-
-    uint64_t t2 = get_time();
 
 #ifdef _WIN32
 	const int mode = 448;
@@ -770,26 +805,39 @@ int run_upload_test(ssh_session ses) {
 #endif
     char* buf = new char[MEGA];
     srand(getpid());
-    for (size_t i=0; i < sizeof(buf); i++) {
+    for (size_t i=0; i < MEGA; i++) {
         buf[i] = (rand() & 0x3f) + 32;
     }
+    uint64_t t2 = get_time();
+
     for (int i=0; i < size; i++) {
-        rc = ssh_scp_push_file(scp, remfile, MEGA, mode);
-        if (rc != SSH_OK) {
-            fprintf(stderr, "*** Can't open remote file: %s\n", ssh_get_error(ses));
+        sftp_file file = sftp_open(sftp, remfile, O_WRONLY | O_CREAT | O_TRUNC, mode);
+        if (file == NULL) {
+            fprintf(stderr, "*** Can't open remote file for upload: %s (SFTP error %d)\n",
+                    ssh_get_error(ses),
+                    sftp_get_error(sftp));
+            sftp_free(sftp);
             delete[] buf;
-            return rc;
+            return SSH_ERROR;
         }
 
-        rc = ssh_scp_write(scp, buf, MEGA);
+        int rc = sftp_write_all(ses, sftp, file, buf, MEGA);
+        int close_rc = sftp_close(file);
         if (rc != SSH_OK) {
-            fprintf(stderr, "*** Can't write to remote file: %s\n", ssh_get_error(ses));
+            sftp_free(sftp);
             delete[] buf;
             return rc;
         }
+        if (close_rc != SSH_OK) {
+            fprintf(stderr, "*** Can't close remote upload file: %s (SFTP error %d)\n",
+                    ssh_get_error(ses),
+                    sftp_get_error(sftp));
+            sftp_free(sftp);
+            delete[] buf;
+            return close_rc;
+        }
     }
-    ssh_scp_close(scp);
-    ssh_scp_free(scp);
+    sftp_free(sftp);
 
     uint64_t t3 = get_time();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
