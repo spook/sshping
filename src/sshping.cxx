@@ -784,6 +784,30 @@ int sftp_write_all(ssh_session ses,
     return SSH_OK;
 }
 
+// Read exactly len bytes unless SFTP reports an error or early EOF
+int sftp_read_all(ssh_session ses,
+                  sftp_session sftp,
+                  sftp_file    file,
+                  char*        buf,
+                  size_t       len) {
+    size_t read = 0;
+    while (read < len) {
+        ssize_t nbytes = sftp_read(file, buf + read, len - read);
+        if (nbytes < 0) {
+            fprintf(stderr, "*** Failed read on file download: %s (SFTP error %d)\n",
+                    ssh_get_error(ses),
+                    sftp_get_error(sftp));
+            return SSH_ERROR;
+        }
+        if (nbytes == 0) {
+            fprintf(stderr, "*** Remote file ended before expected download size\n");
+            return SSH_ERROR;
+        }
+        read += nbytes;
+    }
+    return SSH_OK;
+}
+
 // Run an upload speed test
 int run_upload_test(ssh_session ses) {
 
@@ -866,65 +890,72 @@ int run_download_test(ssh_session ses) {
     size_t avail = 0;
     size_t remaining = size * MEGA;
 
+    sftp_session sftp = begin_sftp_session(ses);
+    if (sftp == NULL) {
+        delete[] buf;
+        return SSH_ERROR;
+    }
+
     uint64_t t2 = get_time();
+    sftp_attributes attrs = sftp_stat(sftp, remfile);
+    if (attrs == NULL) {
+        fprintf(stderr, "*** Cannot stat download file: %s (SFTP error %d)\n",
+                ssh_get_error(ses),
+                sftp_get_error(sftp));
+        sftp_free(sftp);
+        delete[] buf;
+        return SSH_ERROR;
+    }
+    avail = attrs->size;
+    sftp_attributes_free(attrs);
+
+    if (verbosity) {
+        printf("+++ Available size of download: %lu Bytes\n", (unsigned long)avail);
+        if (remaining > avail) {
+            printf("  + (Will repeat download as needed)\n");
+        }
+    }
+    if (!avail) {
+        fprintf(stderr, "*** Remote file size must be non-zero\n");
+        sftp_free(sftp);
+        delete[] buf;
+        return SSH_ERROR;
+    }
+
     while (remaining) {
-        ssh_scp scp = ssh_scp_new(ses, SSH_SCP_READ, remfile);
-        if (scp == NULL) {
-            fprintf(stderr, "*** Cannot allocate scp context: %s\n", ssh_get_error(ses));
+        size_t amount = avail;
+        if (amount > remaining)  amount = remaining;
+        if (amount > DLBUF_SIZE) amount = DLBUF_SIZE;
+
+        sftp_file file = sftp_open(sftp, remfile, O_RDONLY, 0);
+        if (file == NULL) {
+            fprintf(stderr, "*** Can't open remote file for download: %s (SFTP error %d)\n",
+                    ssh_get_error(ses),
+                    sftp_get_error(sftp));
+            sftp_free(sftp);
             delete[] buf;
             return SSH_ERROR;
         }
 
-        int rc = ssh_scp_init(scp);
+        int rc = sftp_read_all(ses, sftp, file, buf, amount);
+        int close_rc = sftp_close(file);
         if (rc != SSH_OK) {
-            fprintf(stderr, "*** Cannot init scp context: %s\n", ssh_get_error(ses));
-            ssh_scp_free(scp);
+            sftp_free(sftp);
             delete[] buf;
             return rc;
         }
-
-        rc = ssh_scp_pull_request(scp);
-        if (rc != SSH_SCP_REQUEST_NEWFILE) {
-            fprintf(stderr, "*** Cannot request download file - got %d: %s\n", rc, ssh_get_error(ses));
-            ssh_scp_close(scp);
-            ssh_scp_free(scp);
+        if (close_rc != SSH_OK) {
+            fprintf(stderr, "*** Can't close remote download file: %s (SFTP error %d)\n",
+                    ssh_get_error(ses),
+                    sftp_get_error(sftp));
+            sftp_free(sftp);
             delete[] buf;
-            return rc;
-        }
-
-        if (!avail) {
-            avail = ssh_scp_request_get_size(scp);
-            if (verbosity) {
-                printf("+++ Available size of download: %lu Bytes\n", avail);
-                if (remaining > avail) {
-                    printf("  + (Will repeat download as needed)\n");
-                }
-            }
-            if (!avail) {
-                fprintf(stderr, "*** Remote file size must be non-zero\n");
-                ssh_scp_close(scp);
-                ssh_scp_free(scp);
-                delete[] buf;
-                return rc;
-            }
-        }
-        size_t amount = avail;
-        if (amount > remaining)  amount = remaining;
-        if (amount > DLBUF_SIZE) amount = DLBUF_SIZE;
-        ssh_scp_accept_request(scp);
-        rc = ssh_scp_read(scp, buf, amount);
-        if (rc == SSH_ERROR) {
-            fprintf(stderr, "*** Failed read on file download: %s\n", ssh_get_error(ses));
-            ssh_scp_close(scp);
-            ssh_scp_free(scp);
-            delete[] buf;
-            return rc;
+            return close_rc;
         }
 
         remaining -= amount;
-        ssh_scp_close(scp);
-        ssh_scp_free(scp);
     }
+    sftp_free(sftp);
 
     uint64_t t3 = get_time();
     double duration = double(nsec_diff(t3, t2)) / GIGAF;
