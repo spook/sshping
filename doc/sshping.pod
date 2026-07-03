@@ -74,7 +74,7 @@ Short and long forms of options take the same arguments as shown.
     Run these tests e=echo s=speed; default es=both
 
 -s, --size MB
-    For transfer speed test (the scp test), send/receive MB
+    For transfer speed test (the SFTP test), send/receive MB
     megabytes; default=8 MB
 
 -t, --time SECS
@@ -147,7 +147,7 @@ Echo-Count
 
 The file transfer I<speed test> measures the upload and
 download throughput rate, in bytes per second (Bps),
-using the scp subsystem.  This is the subsystem typically used
+using the SFTP subsystem.  This is a subsystem commonly used
 when copying files over ssh.
 
 For the upload test, a random 1MB file is copied to

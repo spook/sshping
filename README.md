@@ -6,11 +6,11 @@ ssh-based ping: measure character-echo latency and bandwidth for an interactive 
 ## Description
 
 Use this utility to test the performance of interactive ssh sessions
-or scp file transfers.  It uses ssh to log into a remote system, then 
+or SFTP file transfers.  It uses ssh to log into a remote system, then
 runs two tests: the first test sends one character at a time, waiting
 for each character to be returned while it records the latency time
-for each.  The second test sends a dummy file over scp to /dev/null
-on the remote system.
+for each.  The second test writes and reads back a dummy file over SFTP
+at a target file on the remote system.
 
 For the echo test, you may specify a character count limit (-c) or a test
 time limit (-t), and also the command (-e) used on the remote system that
@@ -147,4 +147,3 @@ Or you can directly install on the current system with:
     sudo make install
 
 Enjoy!
-
